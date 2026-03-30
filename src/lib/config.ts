@@ -36,11 +36,11 @@ export type PageType = 'blog' | 'notes';
 //网站信息
 export const SITE_INFO = {
   // 网站名称
-  NAME: 'MapleBlog',
-  SITE_NAME: 'Maple Blog',
-  SUBNAME: '一个简单的Liquid Glass风格的静态网站系统',
+  NAME: '某人的博客',
+  SITE_NAME: '某人的博客',
+  SUBNAME: '某人的博客',
   // 网站描述
-  DESCRIPTION: 'Maple_CMS是一个简单的Liquid Glass风格的静态网站系统，用于快速搭建个人博客、技术分享、产品展示等网站。',
+  DESCRIPTION: '某人的博客',
   // 网站 URL (生产环境)
   URL: 'http://localhost:4321',
   AUTHOR: 'Maplezz',

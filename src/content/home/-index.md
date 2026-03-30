@@ -1,6 +1,6 @@
 ---
-title: MapleBlog
-content: MapleBlog 是一个基于 Astro 的静态站点生成器，用于创建博客、文档和其他类型的网站。
+title: 某人的博客
+content: 某人的博客
 button:
   label: 查看代码
   link: https://github.com/MapleBlog/MapleBlog_public

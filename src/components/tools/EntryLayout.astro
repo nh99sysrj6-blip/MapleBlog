@@ -5,11 +5,11 @@ import type { CollectionEntry } from "astro:content";
 
 interface Props {
   entry: CollectionEntry<"tools">;
+  htmlContent: string;
 }
 
-const { entry } = Astro.props;
-const { title, description, file, tags, icon } = entry.data;
-const toolUrl = `/tools/${file}`;
+const { entry, htmlContent } = Astro.props;
+const { title, description, tags, icon } = entry.data;
 ---
 
 <BaseLayout title={title} description={description}>
@@ -38,16 +38,16 @@ const toolUrl = `/tools/${file}`;
       )}
     </LiquidGlass>
 
-    <!-- 工具嵌入区 -->
-    <LiquidGlass heavy textClass="p-2" animation="fadeUp">
-      <iframe
-        src={toolUrl}
-        title={title}
-        class="w-full rounded-xl border-0"
-        style="min-height: 75vh;"
-        loading="lazy"
-        sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
-      />
+    <!-- 工具内容区（直接内联渲染 html） -->
+    <LiquidGlass heavy textClass="p-4 md:p-6" animation="fadeUp">
+      <div class="tool-content" set:html={htmlContent} />
     </LiquidGlass>
   </div>
 </BaseLayout>
+
+<style is:global>
+  /* 隔离工具内容的样式，避免影响全局 */
+  .tool-content {
+    all: revert;
+  }
+</style>
