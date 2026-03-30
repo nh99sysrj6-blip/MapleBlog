@@ -185,6 +185,17 @@ const terms = defineCollection({
   loader: glob({ pattern: "-index.{md,mdx}", base: "./src/content/terms" }),
   schema: baseContent,
 });
+
+// 工具集合
+const tools = defineCollection({
+  loader: glob({ pattern: "**\/[^_]*.{md,mdx}", base: "./src/content/tools" }),
+  schema: baseContent.extend({
+    file: z.string(), // 对应 public/tools/ 下的 html 文件名
+    tags: z.array(z.string()).optional(),
+    icon: z.string().optional(),
+  }),
+});
+
 // Export collections
 export const collections = {
   about,
@@ -197,4 +208,5 @@ export const collections = {
   search,
   social: socialConfig,
   terms,
+  tools,
 };

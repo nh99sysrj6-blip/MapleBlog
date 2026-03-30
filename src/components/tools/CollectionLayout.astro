@@ -1,0 +1,36 @@
+---
+import BaseLayout from "@components/base/BaseLayout.astro";
+import PageHeader from "@components/common/PageHeader.astro";
+import ToolCard from "@components/tools/ToolCard.astro";
+import LiquidGlass from "@components/common/LiquidGlassLess.astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  title: string;
+  description?: string;
+  entries: CollectionEntry<"tools">[];
+}
+
+const { title, description, entries } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="container px-3 lg:px-8">
+    <PageHeader title={title} description={description} articleCount={entries.length} />
+    <section>
+      {entries.length > 0 ? (
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {entries.map((entry, index) => (
+            <div style={`animation-delay: ${index * 100}ms`}>
+              <ToolCard entry={entry} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <LiquidGlass heavy containerClass="p-8" animation="fadeUp">
+          <p class="text-center text-gray-500">暂无工具</p>
+        </LiquidGlass>
+      )}
+    </section>
+  </div>
+</BaseLayout>

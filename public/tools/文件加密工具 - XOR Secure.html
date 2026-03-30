@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件加密工具 - XOR Secure</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">文件加密工具</h1>
+        
+        <div class="space-y-4">
+            <!-- 文件上传区域 -->
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <input type="file" id="fileInput" class="hidden" />
+                <label for="fileInput" class="cursor-pointer bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                    选择文件
+                </label>
+                <p class="text-gray-500 mt-2" id="fileName">未选择任何文件</p>
+            </div>
+
+            <!-- 密钥输入 -->
+            <div class="space-y-2">
+                <label class="block text-gray-700">加密密钥：</label>
+                <input type="password" id="keyInput" 
+                    class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="输入加密/解密密钥">
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="processFile('encrypt')" 
+                    class="bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    加密文件
+                </button>
+                <button onclick="processFile('decrypt')" 
+                    class="bg-purple-500 text-white p-3 rounded-lg hover:bg-purple-600 transition-colors flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                    </svg>
+                    解密文件
+                </button>
+            </div>
+
+            <!-- 状态提示 -->
+            <div id="status" class="text-center text-gray-500 h-6"></div>
+
+            <!-- 下载链接 -->
+            <div id="downloadLink" class="hidden text-center">
+                <a class="text-blue-500 hover:underline cursor-pointer">下载处理后的文件</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const keyInput = document.getElementById('keyInput');
+        const status = document.getElementById('status');
+        const downloadLink = document.getElementById('downloadLink');
+
+        // 文件选择处理
+        fileInput.addEventListener('change', function(e) {
+            fileName.textContent = e.target.files[0] ? e.target.files[0].name : '未选择任何文件';
+        });
+
+        // 核心加密/解密函数
+        async function processFile(mode) {
+            const file = fileInput.files[0];
+            const key = keyInput.value;
+            
+            if (!file || !key) {
+                alert('请先选择文件并输入密钥');
+                return;
+            }
+
+            status.textContent = '处理中...';
+            downloadLink.classList.add('hidden');
+
+            try {
+                const fileBuffer = await file.arrayBuffer();
+                const processedBuffer = xorProcessing(new Uint8Array(fileBuffer), key);
+                
+                const processedBlob = new Blob([processedBuffer], { type: file.type });
+                const url = URL.createObjectURL(processedBlob);
+                
+                downloadLink.querySelector('a').onclick = () => {
+                    const ext = mode === 'encrypt' ? '.encrypted' : '.decrypted';
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${file.name}${ext}`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                };
+                
+                downloadLink.classList.remove('hidden');
+                status.textContent = '处理完成！点击下方链接下载';
+            } catch (error) {
+                status.textContent = '处理失败：' + error.message;
+            }
+        }
+
+        // XOR加密/解密算法
+        function xorProcessing(data, key) {
+            const keyBytes = Array.from(key).map(c => c.charCodeAt(0));
+            return data.map((byte, index) => 
+                byte ^ keyBytes[index % keyBytes.length]
+            );
+        }
+    </script>
+
+    <style>
+        /* 自定义加载动画 */
+        [aria-busy="true"]::after {
+            content: "";
+            @apply inline-block ml-2 w-4 h-4 border-2 border-current border-t-transparent rounded-full;
+            animation: spin 0.75s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</body>
+</html>

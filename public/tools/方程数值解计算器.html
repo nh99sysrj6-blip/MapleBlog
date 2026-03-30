@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>方程数值解计算器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">方程数值解计算器</h1>
+        
+        <!-- 输入区域 -->
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">方程 f(x) = </label>
+                <input type="text" id="equation" 
+                       class="w-full p-2 border rounded-md" 
+                       placeholder="例如：ln(x) + sin(x^2)"
+                       value="ln(x) + sin(x^2)">
+	<label class="block text-sm font-medium text-gray-700 mb-2">e为底用ln(x)，10为底用log(x)</label>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">区间起点 a</label>
+                    <input type="number" id="a" step="0.1" value="0.5" 
+                           class="w-full p-2 border rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">区间终点 b</label>
+                    <input type="number" id="b" step="0.1" value="2" 
+                           class="w-full p-2 border rounded-md">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">误差容限</label>
+                <input type="number" id="tolerance" step="0.0001" value="0.0001" 
+                       class="w-full p-2 border rounded-md">
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <button onclick="calculateRoot()" 
+                class="mt-6 w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition">
+            计算
+        </button>
+
+        <!-- 结果展示 -->
+        <div id="result" class="mt-6 space-y-2 hidden">
+            <h2 class="text-lg font-semibold text-gray-800">计算结果：</h2>
+            <pre class="bg-gray-50 p-4 rounded-md" id="result-content"></pre>
+        </div>
+
+        <div id="error" class="mt-4 text-red-600 hidden"></div>
+    </div>
+
+    <script>
+        function calculateRoot() {
+            document.getElementById('result').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+
+            try {
+                const equation = document.getElementById('equation').value;
+                const a = parseFloat(document.getElementById('a').value);
+                const b = parseFloat(document.getElementById('b').value);
+                const tolerance = parseFloat(document.getElementById('tolerance').value);
+
+                if (isNaN(a) || isNaN(b) || isNaN(tolerance)) {
+                    throw new Error('请输入有效的数值参数');
+                }
+                if (a >= b) {
+                    throw new Error('区间终点b必须大于起点a');
+                }
+
+                // 改进的表达式转换逻辑
+                const processedEquation = equation
+                    .replace(/ln\(/g, 'Math.log(')         // 先处理自然对数
+                    .replace(/log\(/g, 'Math.log10(')     // 处理十进制对数
+                    .replace(/e\^(\w+|\([^)]*\))/g, 'Math.exp($1)') // 处理自然指数
+                    .replace(/(sin|cos|tan|sqrt|exp)\(/gi, (m, p1) => `Math.${p1.toLowerCase()}(`) // 处理其他数学函数
+                    .replace(/([a-zA-Z0-9\)]+)\s*\^\s*([a-zA-Z0-9\(]+)/g, 'Math.pow($1, $2)') // 最后处理幂运算
+                    .replace(/Math\.Math\./g, 'Math.');   // 修复嵌套替换问题
+
+                const f = new Function('x', `return ${processedEquation};`);
+                
+                // 测试函数是否有效
+                if (isNaN(f(a)) || isNaN(f(b))) {
+                    throw new Error('方程表达式无效，请检查数学函数和运算符');
+                }
+
+                const startTime = performance.now();
+                let [root, iterations] = bisection(f, a, b, tolerance);
+                const duration = performance.now() - startTime;
+
+                const resultContent = document.getElementById('result-content');
+                resultContent.innerHTML = `根值：${root.toFixed(6)}\n迭代次数：${iterations}\n计算耗时：${duration.toFixed(2)}ms`;
+                document.getElementById('result').classList.remove('hidden');
+
+            } catch (error) {
+                document.getElementById('error').innerText = '错误：' + error.message;
+                document.getElementById('error').classList.remove('hidden');
+            }
+        }
+
+        function bisection(f, a, b, tolerance, maxIterations = 1000) {
+            if (f(a) * f(b) >= 0) {
+                throw new Error('函数在区间端点必须异号');
+            }
+
+            let c = a;
+            let iterations = 0;
+            
+            while ((b - a) >= tolerance && iterations < maxIterations) {
+                c = (a + b) / 2;
+                
+                if (f(c) === 0.0) {
+                    break;
+                } else if (f(c) * f(a) < 0) {
+                    b = c;
+                } else {
+                    a = c;
+                }
+                iterations++;
+            }
+
+            if (iterations >= maxIterations) {
+                throw new Error('超过最大迭代次数，可能未收敛');
+            }
+
+            return [c, iterations];
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+---
+import BaseLayout from "@components/base/BaseLayout.astro";
+import LiquidGlass from "@components/common/LiquidGlassLess.astro";
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  entry: CollectionEntry<"tools">;
+}
+
+const { entry } = Astro.props;
+const { title, description, file, tags, icon } = entry.data;
+const toolUrl = `/tools/${file}`;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="container px-3 lg:px-8">
+    <!-- 标题栏 -->
+    <LiquidGlass heavy containerClass="mb-4" textClass="p-4" animation="fadeDown">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+          <a href="/tools" class="text-gray-500 hover:text-orange-500 transition-colors text-sm">← 工具列表</a>
+          <span class="text-gray-300 dark:text-gray-600">|</span>
+          {icon && <span class="text-xl">{icon}</span>}
+          <h1 class="text-xl font-bold text-txt-p dark:text-darkmode-txt-p">{title}</h1>
+        </div>
+        {tags && tags.length > 0 && (
+          <div class="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <span class="px-2 py-0.5 glass-l text-xs rounded-full text-gray-700 dark:text-gray-300">
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {description && (
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">{description}</p>
+      )}
+    </LiquidGlass>
+
+    <!-- 工具嵌入区 -->
+    <LiquidGlass heavy textClass="p-2" animation="fadeUp">
+      <iframe
+        src={toolUrl}
+        title={title}
+        class="w-full rounded-xl border-0"
+        style="min-height: 75vh;"
+        loading="lazy"
+        sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
+      />
+    </LiquidGlass>
+  </div>
+</BaseLayout>

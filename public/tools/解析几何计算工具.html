@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>几何计算工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.2.0/fraction.min.js"></script>
+</head>
+<body class="p-6 bg-gray-100">
+    <div class="max-w-2xl mx-auto space-y-8">
+        <!-- 点关于直线对称 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4">点关于直线对称</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block mb-2">点坐标 (x,y)</label>
+                    <input type="text" id="pl-x" class="w-full p-2 border rounded" placeholder="x">
+                    <input type="text" id="pl-y" class="w-full p-2 border rounded mt-2" placeholder="y">
+                </div>
+                <div>
+                    <label class="block mb-2">直线方程 Ax+By+C=0</label>
+                    <input type="text" id="pl-A" class="w-full p-2 border rounded" placeholder="A">
+                    <input type="text" id="pl-B" class="w-full p-2 border rounded mt-2" placeholder="B">
+                    <input type="text" id="pl-C" class="w-full p-2 border rounded mt-2" placeholder="C">
+                </div>
+            </div>
+            <button onclick="calcPointLineSymmetry()" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mt-4">
+                计算对称点
+            </button>
+            <div id="pl-result" class="mt-4 space-y-2"></div>
+        </div>
+
+        <!-- 直线关于点对称 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4">直线关于点对称</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block mb-2">直线方程 Ax+By+C=0</label>
+                    <input type="text" id="lp-A" class="w-full p-2 border rounded" placeholder="A">
+                    <input type="text" id="lp-B" class="w-full p-2 border rounded mt-2" placeholder="B">
+                    <input type="text" id="lp-C" class="w-full p-2 border rounded mt-2" placeholder="C">
+                </div>
+                <div>
+                    <label class="block mb-2">对称点 (x,y)</label>
+                    <input type="text" id="lp-x" class="w-full p-2 border rounded" placeholder="x">
+                    <input type="text" id="lp-y" class="w-full p-2 border rounded mt-2" placeholder="y">
+                </div>
+            </div>
+            <button onclick="calcLinePointSymmetry()" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 mt-4">
+                计算对称直线
+            </button>
+            <div id="lp-result" class="mt-4 space-y-2"></div>
+        </div>
+
+        <!-- 直线关于直线对称 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4">直线关于直线对称</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block mb-2">原直线 Px+Qy+R=0</label>
+                    <input type="text" id="ll-P" class="w-full p-2 border rounded" placeholder="P">
+                    <input type="text" id="ll-Q" class="w-full p-2 border rounded mt-2" placeholder="Q">
+                    <input type="text" id="ll-R" class="w-full p-2 border rounded mt-2" placeholder="R">
+                </div>
+                <div>
+                    <label class="block mb-2">对称轴 Ax+By+C=0</label>
+                    <input type="text" id="ll-A" class="w-full p-2 border rounded" placeholder="A">
+                    <input type="text" id="ll-B" class="w-full p-2 border rounded mt-2" placeholder="B">
+                    <input type="text" id="ll-C" class="w-full p-2 border rounded mt-2" placeholder="C">
+                </div>
+            </div>
+            <button onclick="calcLineLineSymmetry()" class="w-full bg-purple-500 text-white p-2 rounded hover:bg-purple-600 mt-4">
+                计算对称直线
+            </button>
+            <div id="ll-result" class="mt-4 space-y-2"></div>
+        </div>
+
+        <!-- 三点求圆 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4">三点确定圆的方程</h2>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block mb-2">点1 (x,y)</label>
+                    <input type="text" id="c-x1" class="w-full p-2 border rounded" placeholder="x1">
+                    <input type="text" id="c-y1" class="w-full p-2 border rounded mt-2" placeholder="y1">
+                </div>
+                <div>
+                    <label class="block mb-2">点2 (x,y)</label>
+                    <input type="text" id="c-x2" class="w-full p-2 border rounded" placeholder="x2">
+                    <input type="text" id="c-y2" class="w-full p-2 border rounded mt-2" placeholder="y2">
+                </div>
+                <div>
+                    <label class="block mb-2">点3 (x,y)</label>
+                    <input type="text" id="c-x3" class="w-full p-2 border rounded" placeholder="x3">
+                    <input type="text" id="c-y3" class="w-full p-2 border rounded mt-2" placeholder="y3">
+                </div>
+            </div>
+            <button onclick="calcCircle()" class="w-full bg-orange-500 text-white p-2 rounded hover:bg-orange-600 mt-4">
+                计算圆方程
+            </button>
+            <div id="c-result" class="mt-4 space-y-2"></div>
+        </div>
+    </div>
+
+    <script>
+        // 公共函数：解析分数输入
+        function parseFraction(input) {
+            try {
+                if (input.includes('/')) {
+                    const [numerator, denominator] = input.split('/').map(Number)
+                    return new Fraction(numerator, denominator)
+                }
+                return new Fraction(parseFloat(input))
+            } catch {
+                return null
+            }
+        }
+
+        // 二阶行列式计算
+        function det2(a, b, c, d) {
+            return a.mul(d).sub(b.mul(c))
+        }
+
+        // 解二元一次方程组
+        function solveSystem(a1, b1, c1, a2, b2, c2) {
+            const D = det2(a1, b1, a2, b2)
+            if (D.valueOf() === 0) return [null, null]
+            const Dx = det2(c1, b1, c2, b2)
+            const Dy = det2(a1, c1, a2, c2)
+            return [Dx.div(D), Dy.div(D)]
+        }
+
+        // 点关于直线对称
+        // 点关于直线对称
+function calcPointLineSymmetry() {
+    const result = document.getElementById('pl-result')
+    result.innerHTML = ''
+
+    // 解析输入
+    const x = parseFraction(document.getElementById('pl-x').value)
+    const y = parseFraction(document.getElementById('pl-y').value)
+    const A = parseFraction(document.getElementById('pl-A').value)
+    const B = parseFraction(document.getElementById('pl-B').value)
+    const C = parseFraction(document.getElementById('pl-C').value)
+
+    if (!x || !y || !A || !B || !C) {
+        result.innerHTML = '<p class="text-red-500">错误：请输入有效的数值</p>'
+        return
+    }
+
+    // 构造方程组（修复方程构造）
+    const equation1 = A.mul(x).add(B.mul(y)).add(C.mul(2)).neg() // 正确构造方程右侧
+    const equation2 = B.mul(x).sub(A.mul(y)) 
+
+    const [m, n] = solveSystem(
+        A, B, equation1,       // 第一个方程: A*m + B*n = -(Ax + By + 2C)
+        B, A.mul(-1), equation2 // 第二个方程: B*m - A*n = Bx - Ay
+    )
+
+    if (m && n) {
+        result.innerHTML = `
+            <p class="font-medium">对称点坐标:</p>
+            <p>(${m.toFraction()}, ${n.toFraction()})</p>
+            <p>近似值: (${m.valueOf().toFixed(2)}, ${n.valueOf().toFixed(2)})</p>
+        `
+    } else {
+        result.innerHTML = '<p class="text-red-500">错误：无法求解，可能直线不存在对称点</p>'
+    }
+}
+
+        // 直线关于点对称
+        function calcLinePointSymmetry() {
+            const result = document.getElementById('lp-result')
+            result.innerHTML = ''
+
+            const A = parseFraction(document.getElementById('lp-A').value)
+            const B = parseFraction(document.getElementById('lp-B').value)
+            const C = parseFraction(document.getElementById('lp-C').value)
+            const x = parseFraction(document.getElementById('lp-x').value)
+            const y = parseFraction(document.getElementById('lp-y').value)
+
+            if (!A || !B || !C || !x || !y) {
+                result.innerHTML = '<p class="text-red-500">错误：请输入有效的数值</p>'
+                return
+            }
+
+            const m = A.mul(-2).mul(x).sub(B.mul(2).mul(y)).sub(C)
+            
+            result.innerHTML = `
+                <p class="font-medium">对称直线方程:</p>
+                <p>${A.toFraction()}x + ${B.toFraction()}y + ${m.toFraction()} = 0</p>
+                <p>近似值: ${A.valueOf().toFixed(2)}x + ${B.valueOf().toFixed(2)}y + ${m.valueOf().toFixed(2)} = 0</p>
+            `
+        }
+
+        // 直线关于直线对称
+        function calcLineLineSymmetry() {
+            const result = document.getElementById('ll-result')
+            result.innerHTML = ''
+
+            const P = parseFraction(document.getElementById('ll-P').value)
+            const Q = parseFraction(document.getElementById('ll-Q').value)
+            const R = parseFraction(document.getElementById('ll-R').value)
+            const A = parseFraction(document.getElementById('ll-A').value)
+            const B = parseFraction(document.getElementById('ll-B').value)
+            const C = parseFraction(document.getElementById('ll-C').value)
+
+            if (!P || !Q || !R || !A || !B || !C) {
+                result.innerHTML = '<p class="text-red-500">错误：请输入有效的数值</p>'
+                return
+            }
+
+            const k = P.mul(A).add(Q.mul(B)).mul(2).div(A.pow(2).add(B.pow(2)))
+            const newP = P.sub(A.mul(k))
+            const newQ = Q.sub(B.mul(k))
+            const newR = R.sub(C.mul(k))
+
+            result.innerHTML = `
+                <p class="font-medium">对称直线方程:</p>
+                <p>${newP.toFraction()}x + ${newQ.toFraction()}y + ${newR.toFraction()} = 0</p>
+                <p>近似值: ${newP.valueOf().toFixed(2)}x + ${newQ.valueOf().toFixed(2)}y + ${newR.valueOf().toFixed(2)} = 0</p>
+            `
+        }
+
+        // 三点确定圆
+        function calcCircle() {
+            const result = document.getElementById('c-result')
+            result.innerHTML = ''
+
+            // 解析三个点坐标
+            const x1 = parseFraction(document.getElementById('c-x1').value)
+            const y1 = parseFraction(document.getElementById('c-y1').value)
+            const x2 = parseFraction(document.getElementById('c-x2').value)
+            const y2 = parseFraction(document.getElementById('c-y2').value)
+            const x3 = parseFraction(document.getElementById('c-x3').value)
+            const y3 = parseFraction(document.getElementById('c-y3').value)
+
+            if (!x1 || !y1 || !x2 || !y2 || !x3 || !y3) {
+                result.innerHTML = '<p class="text-red-500">错误：请输入有效的坐标值</p>'
+                return
+            }
+
+            // 构造方程组
+            const z1 = x1.pow(2).add(y1.pow(2))
+            const z2 = x2.pow(2).add(y2.pow(2))
+            const z3 = x3.pow(2).add(y3.pow(2))
+
+            const [D, E] = solveSystem(
+                x1.sub(x2), y1.sub(y2), z2.sub(z1),
+                x1.sub(x3), y1.sub(y3), z3.sub(z1)
+            )
+
+            if (!D || !E) {
+                result.innerHTML = '<p class="text-red-500">错误：三点共线或无法形成圆</p>'
+                return
+            }
+
+            const F = z1.neg().sub(D.mul(x1)).sub(E.mul(y1))
+            const r2 = D.pow(2).add(E.pow(2)).sub(F.mul(4)).div(4)
+
+            result.innerHTML = `
+                <div class="space-y-2">
+                    <p class="font-medium">圆方程参数:</p>
+                    <p>D = ${D.toFraction()}, E = ${E.toFraction()}, F = ${F.toFraction()}</p>
+                    <p>圆心坐标: (-${D.div(2).toFraction()}, -${E.div(2).toFraction()})</p>
+                    <p>半径平方: ${r2.toFraction()} ≈ ${r2.valueOf().toFixed(4)}</p>
+                </div>
+            `
+        }
+    </script>
+</body>
+</html>

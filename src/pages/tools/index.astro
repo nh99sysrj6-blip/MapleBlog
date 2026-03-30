@@ -1,0 +1,14 @@
+---
+import CollectionLayout from "@components/tools/CollectionLayout.astro";
+import { getCollection } from "astro:content";
+
+const allTools = await getCollection("tools");
+// 过滤掉 -index.md（没有 file 字段）
+const entries = allTools.filter((e) => e.data.file);
+---
+
+<CollectionLayout
+  title="工具"
+  description="一些实用的在线小工具。"
+  entries={entries}
+/>

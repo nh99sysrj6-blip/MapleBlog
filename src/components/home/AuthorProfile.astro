@@ -2,7 +2,7 @@
 import { Image } from "astro:assets";
 import { FaWeixin, FaGithub, FaEnvelope } from "react-icons/fa";
 import { SiXiaohongshu } from "react-icons/si";
-import defaultImg from "@assets/picture.jpg";
+import defaultImg from "@assets/1.jpg";
 import { getEntry } from "astro:content";
 import { getEntries } from "@lib/contentParser";
 import { sortByDate } from "@lib/sortFunctions";
@@ -51,12 +51,9 @@ const allPosts = await getEntries("blog", sortByDate);
           <!-- 名字和徽章 -->
           <div class="flex flex-col items-center gap-3">
             <h1 class="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              MAPLE
+              nonvioce
             </h1>
             <div class="flex justify-center gap-2">
-              <span class="px-2 py-1 text-xs font-medium bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full border border-blue-500/30">
-                开发者
-              </span>
               <span class="px-2 py-1 text-xs font-medium bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-full border border-purple-500/30">
                 博主
               </span>

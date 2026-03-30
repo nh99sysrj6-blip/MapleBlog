@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数学工具套件</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.2.0/fraction.min.js"></script>
+    <style>
+        .tool-content { display: none; }
+        .tool-content.active { display: block; }
+        .nav-btn.active { 
+            background-color: #3B82F6; 
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between py-3">
+                <div class="flex space-x-4 overflow-x-auto">
+                    <button class="nav-btn px-4 py-2 rounded-lg hover:bg-blue-50" data-tool="encrypt">文件加密</button>
+                    <button class="nav-btn px-4 py-2 rounded-lg hover:bg-blue-50" data-tool="series">等差乘等比</button>
+                    <button class="nav-btn px-4 py-2 rounded-lg hover:bg-blue-50" data-tool="stats">统计计算</button>
+                    <button class="nav-btn px-4 py-2 rounded-lg hover:bg-blue-50" data-tool="histogram">直方图</button>
+                    <button class="nav-btn px-4 py-2 rounded-lg hover:bg-blue-50" data-tool="geometry">解析几何</button>
+                     <button class="nav-btn px-4 py-2 rounded-lg hover:bg-blue-50" data-tool="distribution">概率分布</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 工具容器 -->
+    
+        <!-- 文件加密工具 -->
+        <div id="encrypt" class="tool-content">
+            <!-- ... 原有文件加密内容 ... -->
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>文件加密工具 - XOR Secure</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+            </head>
+            <body class="bg-gray-100 min-h-screen p-8">
+                <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">文件加密工具</h1>
+                    
+                    <div class="space-y-4">
+                        <!-- 文件上传区域 -->
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                            <input type="file" id="fileInput" class="hidden" />
+                            <label for="fileInput" class="cursor-pointer bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                                选择文件
+                            </label>
+                            <p class="text-gray-500 mt-2" id="fileName">未选择任何文件</p>
+                        </div>
+            
+                        <!-- 密钥输入 -->
+                        <div class="space-y-2">
+                            <label class="block text-gray-700">加密密钥：</label>
+                            <input type="password" id="keyInput" 
+                                class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="输入加密/解密密钥">
+                        </div>
+            
+                        <!-- 操作按钮 -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="processFile('encrypt')" 
+                                class="bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                                加密文件
+                            </button>
+                            <button onclick="processFile('decrypt')" 
+                                class="bg-purple-500 text-white p-3 rounded-lg hover:bg-purple-600 transition-colors flex items-center justify-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                                </svg>
+                                解密文件
+                            </button>
+                        </div>
+            
+                        <!-- 状态提示 -->
+                        <div id="status" class="text-center text-gray-500 h-6"></div>
+            
+                        <!-- 下载链接 -->
+                        <div id="downloadLink" class="hidden text-center">
+                            <a class="text-blue-500 hover:underline cursor-pointer">下载处理后的文件</a>
+                        </div>
+                    </div>
+                </div>
+            
+                <script>
+                    const fileInput = document.getElementById('fileInput');
+                    const fileName = document.getElementById('fileName');
+                    const keyInput = document.getElementById('keyInput');
+                    const status = document.getElementById('status');
+                    const downloadLink = document.getElementById('downloadLink');
+            
+                    // 文件选择处理
+                    fileInput.addEventListener('change', function(e) {
+                        fileName.textContent = e.target.files[0] ? e.target.files[0].name : '未选择任何文件';
+                    });
+            
+                    // 核心加密/解密函数
+                    async function processFile(mode) {
+                        const file = fileInput.files[0];
+                        const key = keyInput.value;
+                        
+                        if (!file || !key) {
+                            alert('请先选择文件并输入密钥');
+                            return;
+                        }
+            
+                        status.textContent = '处理中...';
+                        downloadLink.classList.add('hidden');
+            
+                        try {
+                            const fileBuffer = await file.arrayBuffer();
+                            const processedBuffer = xorProcessing(new Uint8Array(fileBuffer), key);
+                            
+                            const processedBlob = new Blob([processedBuffer], { type: file.type });
+                            const url = URL.createObjectURL(processedBlob);
+                            
+                            downloadLink.querySelector('a').onclick = () => {
+                                const ext = mode === 'encrypt' ? '.encrypted' : '.decrypted';
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `${file.name}${ext}`;
+                                link.click();
+                                URL.revokeObjectURL(url);
+                            };
+                            
+                            downloadLink.classList.remove('hidden');
+                            status.textContent = '处理完成！点击下方链接下载';
+                        } catch (error) {
+                            status.textContent = '处理失败：' + error.message;
+                        }
+                    }
+            
+                    // XOR加密/解密算法
+                    function xorProcessing(data, key) {
+                        const keyBytes = Array.from(key).map(c => c.charCodeAt(0));
+                        return data.map((byte, index) => 
+                            byte ^ keyBytes[index % keyBytes.length]
+                        );
+                    }
+                </script>
+            
+                <style>
+                    /* 自定义加载动画 */
+                    [aria-busy="true"]::after {
+                        content: "";
+                        @apply inline-block ml-2 w-4 h-4 border-2 border-current border-t-transparent rounded-full;
+                        animation: spin 0.75s linear infinite;
+                    }
+            
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                </style>
+            </body>
+            </html>
+            
+        </div>
+
+        <!-- 等差乘等比求和 -->
+        <div id="series" class="tool-content">
+            <div class="min-h-[60vh] flex items-center justify-center">
+            <!-- ... 原有等差乘等比内容 ... -->
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>等差乘等比求和计算器</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.2.0/fraction.min.js"></script>
+            </head>
+            <body class="min-h-screen bg-gray-100 flex items-center justify-center">
+                <div class="bg-white p-8 rounded-lg shadow-lg w-96">
+                    <h1 class="text-2xl font-bold mb-6 text-gray-800">错位相减法计算器</h1>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">a (系数):</label>
+                            <input type="text" id="a" class="w-full border rounded px-3 py-2" placeholder="如: 3/4 或 0.75">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">b (常数项):</label>
+                            <input type="text" id="b" class="w-full border rounded px-3 py-2" placeholder="如: 1/2 或 0.5">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">q (公比):</label>
+                            <input type="text" id="q" class="w-full border rounded px-3 py-2" placeholder="如: 2 或 1/3">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">m (指数调整):</label>
+                            <input type="text" id="m" class="w-full border rounded px-3 py-2" placeholder="整数，如: 2">
+                        </div>
+                    </div>
+            
+                    <button onclick="calculate()" class="w-full bg-blue-500 text-white py-2 px-4 rounded mt-6 hover:bg-blue-600 transition-colors">
+                        计算
+                    </button>
+            
+                    <div id="result" class="hidden mt-6 p-4 bg-gray-50 rounded">
+                        <p class="font-medium text-gray-800">结果公式：Sₙ = (A⋅n + B)qⁿ - B</p>
+                        <div class="mt-3 space-y-2">
+                            <p class="text-sm">A = <span id="A-value" class="font-mono text-blue-600"></span></p>
+                            <p class="text-sm">B = <span id="B-value" class="font-mono text-blue-600"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+                <script>
+                    // 确保Fraction库可用性检查
+                    if (typeof Fraction === 'undefined') {
+                        alert('错误：分数库加载失败，请检查网络连接！');
+                    }
+            
+                    function parseInput(value) {
+                        try {
+                            return new Fraction(value);
+                        } catch (e) {
+                            throw new Error('无效的分数格式，请使用如 3/4 或 0.75 的格式');
+                        }
+                    }
+            
+                    function calculate() {
+                        try {
+                            // 检查Fraction库是否加载
+                            if (typeof Fraction === 'undefined') {
+                                throw new Error('分数库加载失败，请刷新页面重试');
+                            }
+            
+                            // 解析输入值
+                            const a = parseInput(document.getElementById('a').value);
+                            const b = parseInput(document.getElementById('b').value);
+                            const q = parseInput(document.getElementById('q').value);
+                            const m = parseInt(document.getElementById('m').value);
+            
+                            // 验证输入有效性
+                            if (isNaN(m)) throw new Error('m必须是整数');
+                            if (q.valueOf() === 1) throw new Error('q不能等于1');
+            
+                            // 计算调整系数
+                            const qPower = q.pow(m + 1);
+                            const adjustedA = a.mul(qPower);
+                            const adjustedB = b.mul(qPower);
+            
+                            // 计算核心参数
+                            const qMinus1 = q.sub(1);
+                            const A = adjustedA.div(qMinus1);
+                            const B = adjustedB.sub(A).div(qMinus1);
+            
+                            // 显示结果
+                            document.getElementById('result').classList.remove('hidden');
+                            document.getElementById('A-value').textContent = A.toFraction();
+                            document.getElementById('B-value').textContent = B.toFraction();
+                            
+                        } catch (error) {
+                            alert(`计算错误: ${error.message}`);
+                        }
+                    }
+                </script>
+            </body>
+            </html>
+            
+        </div>
+
+        <!-- 统计计算工具 -->
+        <div id="stats" class="tool-content">
+            <!-- ... 原有统计计算内容 ... -->
+            <!DOCTYPE html>
+            <html lang="zh-cn">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>统计计算工具</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.2.0/fraction.min.js"></script>
+            </head>
+            <body class="p-6 bg-gray-100">
+                <div class="max-w-2xl mx-auto space-y-8">
+                    <!-- 卡方计算 -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold mb-4">卡方计算（2×2列联表）</h2>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <input type="number" id="k2a" class="p-2 border rounded" placeholder="a">
+                            <input type="number" id="k2b" class="p-2 border rounded" placeholder="b">
+                            <input type="number" id="c" class="p-2 border rounded" placeholder="c">
+                            <input type="number" id="d" class="p-2 border rounded" placeholder="d">
+                        </div>
+                        <button onclick="calculateChiSquare()" class="w-full bg-purple-500 text-white p-2 rounded hover:bg-purple-600">
+                            计算卡方值
+                        </button>
+                        <div id="chi2-results" class="mt-4 space-y-2"></div>
+                    </div>
+            
+                    <!-- 线性回归计算 -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold mb-4">一元线性回归</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block mb-2">X 值（空格分隔）</label>
+                                <input type="text" id="x-values" class="w-full p-2 border rounded" placeholder="例如: 1 2 3 4 5">
+                            </div>
+                            <div>
+                                <label class="block mb-2">Y 值（空格分隔）</label>
+                                <input type="text" id="y-values" class="w-full p-2 border rounded" placeholder="例如: 2 4 6 8 10">
+                            </div>
+                            <button onclick="calculateRegression()" class="w-full bg-orange-500 text-white p-2 rounded hover:bg-orange-600">
+                                计算回归参数
+                            </button>
+                            <div id="regression-results" class="mt-4 space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+            
+                <script>
+                    // 卡方计算
+                    function calculateChiSquare() {
+                        const a = parseInt(document.getElementById('k2a').value) || 0;
+                        const b = parseInt(document.getElementById('k2b').value) || 0;
+                        const c = parseInt(document.getElementById('c').value) || 0;
+                        const d = parseInt(document.getElementById('d').value) || 0;
+                        
+                        const n = a + b + c + d;
+                        const numerator = n * Math.pow((a * d - b * c), 2);
+                        const denominator = (a + b) * (c + d) * (a + c) * (b + d);
+                        
+                        const K2 = new Fraction(numerator).div(denominator);
+                        const results = document.getElementById('chi2-results');
+                        
+                        results.innerHTML = `
+                            <p class="font-medium">卡方值 K² = ${K2.toFraction()}</p>
+                            <p class="font-medium">近似值 ≈ ${K2.valueOf().toFixed(4)}</p>
+                        `;
+                    }
+            
+                    // 线性回归计算
+                    // 修改后（使用IIFE封装）
+(function(){
+    function calculateRegression() {
+        // ...原有代码...
+         const xInput = document.getElementById('x-values').value.split(' ').filter(Boolean);
+                        const yInput = document.getElementById('y-values').value.split(' ').filter(Boolean);
+                        const results = document.getElementById('regression-results');
+                        
+                        if (xInput.length !== yInput.length) {
+                            results.innerHTML = '<p class="text-red-500">错误：X 和 Y 的数据量不一致</p>';
+                            return;
+                        }
+            
+                        const n = xInput.length;
+                        let sx = 0, sy = 0, sx2 = 0, sy2 = 0, sxy = 0;
+                        
+                        // 转换输入为数值
+                        const x = xInput.map(Number);
+                        const y = yInput.map(Number);
+            
+                        // 计算各项总和
+                        for (let i = 0; i < n; i++) {
+                            sx += x[i];
+                            sy += y[i];
+                            sx2 += x[i] ** 2;
+                            sy2 += y[i] ** 2;
+                            sxy += x[i] * y[i];
+                        }
+            
+                        // 计算统计量
+                        const xBar = sx / n;
+                        const yBar = sy / n;
+                        const sigmaX = sx2 - n * xBar ** 2;
+                        const sigmaY = sy2 - n * yBar ** 2;
+                        const sigmaXY = sxy - n * xBar * yBar;
+                        const r = sigmaXY / Math.sqrt(sigmaX * sigmaY);
+                        const b = sigmaXY / sigmaX;
+                        const a = yBar - b * xBar;
+            
+                        // 计算残差平方和和决定系数
+                        let se2 = 0;
+                        for (let i = 0; i < n; i++) {
+                            se2 += (y[i] - b * x[i] - a) ** 2;
+                        }
+                        const R2 = 1 - (se2 / sigmaY);
+            
+                        // 格式化显示结果
+                        results.innerHTML = `
+                            <div class="space-y-2">
+                                <p>均值 x̄ = ${xBar.toFixed(4)}</p>
+                                <p>均值 ȳ = ${yBar.toFixed(4)}</p>
+                                <p>方差 Σ(x-x̄)² = ${sigmaX.toFixed(4)}</p>
+                                <p>方差 Σ(y-ȳ)² = ${sigmaY.toFixed(4)}</p>
+                                <p>协方差 Σ(x-x̄)(y-ȳ) = ${sigmaXY.toFixed(4)}</p>
+                                <p class="font-medium">相关系数 r = ${r.toFixed(4)}</p>
+                                <p class="font-medium">回归系数 b = ${b.toFixed(4)}</p>
+                                <p class="font-medium">截距 a = ${a.toFixed(4)}</p>
+                                <p>残差平方和 = ${se2.toFixed(4)}</p>
+                                <p class="font-medium">决定系数 R² = ${R2.toFixed(4)}</p>
+                            </div>
+                        `;
+    }
+    window.calculateRegression = calculateRegression;
+})();
+                    
+                </script>
+            </body>
+            </html>
+            
+        </div>
+
+        <!-- 直方图工具 -->
+        <div id="histogram" class="tool-content">
+            <!-- ... 原有直方图内容 ... -->
+            <!DOCTYPE html>
+            <html lang="zh-cn">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>直方图分析工具</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.2.0/fraction.min.js"></script>
+            </head>
+            <body class="p-6 bg-gray-100">
+                <div class="max-w-2xl mx-auto">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold mb-4">直方图统计分析</h2>
+                        
+                        <!-- 输入区域 -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block mb-2">左端点（a）</label>
+                                <input type="text" id="hist-a" class="w-full p-2 border rounded" placeholder="例如: 1/2 或 0.5">
+                            </div>
+                            <div>
+                                <label class="block mb-2">组距（d）</label>
+                                <input type="text" id="hist-d" class="w-full p-2 border rounded" placeholder="例如: 1/3 或 0.25">
+                            </div>
+                            <div>
+                                <label class="block mb-2">各组频率（空格分隔）</label>
+                                <input type="text" id="hist-f" class="w-full p-2 border rounded" placeholder="例如: 0.2 1/5 3/10">
+                            </div>
+                            <div>
+                                <label class="block mb-2">百分位数（可选）</label>
+                                <input type="text" id="hist-p" class="w-full p-2 border rounded" placeholder="例如: 0.75 或 3/4">
+                            </div>
+                            <button onclick="calculateHistogram()" class="w-full bg-indigo-500 text-white p-2 rounded hover:bg-indigo-600">
+                                开始计算
+                            </button>
+                        </div>
+            
+                        <!-- 结果显示区域 -->
+                        <div id="hist-results" class="mt-6 space-y-4"></div>
+                    </div>
+                </div>
+            
+                <script>
+                    function parseFractionInput(input) {
+                        try {
+                            if (input.includes('/')) {
+                                const [n, d] = input.split('/').map(Number)
+                                return new Fraction(n, d)
+                            }
+                            return new Fraction(parseFloat(input))
+                        } catch {
+                            return null
+                        }
+                    }
+            
+                    function calculateHistogram() {
+                        const results = document.getElementById('hist-results')
+                        results.innerHTML = ''
+            
+                        // 解析输入值
+                        const a = parseFractionInput(document.getElementById('hist-a').value)
+                        const d = parseFractionInput(document.getElementById('hist-d').value)
+                        const fInputs = document.getElementById('hist-f').value.split(' ').filter(Boolean)
+                        const pInput = document.getElementById('hist-p').value
+            
+                        // 验证输入有效性
+                        if (!a || !d || fInputs.length === 0) {
+                            results.innerHTML = '<p class="text-red-500">错误：请输入有效的输入值</p>'
+                            return
+                        }
+            
+                        // 转换频率为分数数组
+                        const f = fInputs.map(parseFractionInput).filter(f => f !== null)
+                        if (f.length !== fInputs.length) {
+                            results.innerHTML = '<p class="text-red-500">错误：包含无效的频率值</p>'
+                            return
+                        }
+            
+                        // 计算频率总和
+                        const sump = f.reduce((acc, val) => acc.add(val), new Fraction(0))
+                        if (!sump.equals(1)) {
+                            results.innerHTML = `<p class="text-red-500">错误：频率总和应为1（当前为${sump.toFraction()}）</p>`
+                            return
+                        }
+            
+                        // 计算均值和方差
+                        let x = d.div(2)
+                        let s = new Fraction(0)
+                        const n = f.length
+                        
+                        for (let i = 0; i < n; i++) {
+                            x = x.add(a.add(d.mul(i)).mul(f[i]))
+                        }
+                        
+                        for (let i = 0; i < n; i++) {
+                            const mid = a.add(d.mul(i)).add(d.div(2))
+                            s = s.add(mid.sub(x).pow(2).mul(f[i]))
+                        }
+            
+                        // 显示基础统计量
+                        let output = `
+                            <div class="space-y-2">
+                                <p class="font-medium">均值 = ${x.toFraction()} ≈ ${x.valueOf().toFixed(4)}</p>
+                                <p class="font-medium">方差 = ${s.toFraction()} ≈ ${s.valueOf().toFixed(4)}</p>
+                        `
+            
+                        // 百分位数计算
+                        if (pInput) {
+                            const p = parseFractionInput(pInput)
+                            if (p && p.compare(0) > 0 && p.compare(1) < 0) {
+                                let m = new Fraction(0)
+                                for (let i = 0; i < n; i++) {
+                                    if (m.add(f[i]).compare(p) >= 0) {
+                                        const q = a.add(d.mul(i)).sub(m.sub(p).div(f[i-1]).mul(d))
+                                        const integer = q.floor()
+                                        const decimal = q.sub(integer)
+                                        output += `<p>${p.toFraction()} 分位数 = ${integer} + ${decimal.toFraction()}</p>`
+                                        break
+                                    }
+                                    m = m.add(f[i])
+                                }
+                            }
+                        }
+            
+                        // 中位数计算
+                        let m = new Fraction(0)
+                        for (let i = 0; i < n; i++) {
+                            if (m.add(f[i]).compare(0.5) >= 0) {
+                                const q = a.add(d.mul(i)).sub(m.sub(0.5).div(f[i-1]).mul(d))
+                                const integer = q.floor()
+                                const decimal = q.sub(integer)
+                                output += `<p class="font-medium">中位数 = ${integer} + ${decimal.toFraction()}</p>`
+                                break
+                            }
+                            m = m.add(f[i])
+                        }
+            
+                        output += '</div>'
+                        results.innerHTML = output
+                    }
+                </script>
+            </body>
+            </html>
+            
+        </div>
+
+        <!-- 解析几何工具 -->
+        <div id="geometry" class="tool-content">
+            <!-- ... 原有解析几何内容 ... -->
+            <!DOCTYPE html>
+            <html lang="zh-cn">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>几何计算工具</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.2.0/fraction.min.js"></script>
+            </head>
+            <body class="p-6 bg-gray-100">
+                <div class="max-w-2xl mx-auto space-y-8">
+                    <!-- 点关于直线对称 -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold mb-4">点关于直线对称</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block mb-2">点坐标 (x,y)</label>
+                                <input type="text" id="pl-x" class="w-full p-2 border rounded" placeholder="x">
+                                <input type="text" id="pl-y" class="w-full p-2 border rounded mt-2" placeholder="y">
+                            </div>
+                            <div>
+                                <label class="block mb-2">直线方程 Ax+By+C=0</label>
+                                <input type="text" id="pl-A" class="w-full p-2 border rounded" placeholder="A">
+                                <input type="text" id="pl-B" class="w-full p-2 border rounded mt-2" placeholder="B">
+                                <input type="text" id="pl-C" class="w-full p-2 border rounded mt-2" placeholder="C">
+                            </div>
+                        </div>
+                        <button onclick="calcPointLineSymmetry()" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mt-4">
+                            计算对称点
+                        </button>
+                        <div id="pl-result" class="mt-4 space-y-2"></div>
+                    </div>
+            
+                    <!-- 直线关于点对称 -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold mb-4">直线关于点对称</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block mb-2">直线方程 Ax+By+C=0</label>
+                                <input type="text" id="lp-A" class="w-full p-2 border rounded" placeholder="A">
+                                <input type="text" id="lp-B" class="w-full p-2 border rounded mt-2" placeholder="B">
+                                <input type="text" id="lp-C" class="w-full p-2 border rounded mt-2" placeholder="C">
+                            </div>
+                            <div>
+                                <label class="block mb-2">对称点 (x,y)</label>
+                                <input type="text" id="lp-x" class="w-full p-2 border rounded" placeholder="x">
+                                <input type="text" id="lp-y" class="w-full p-2 border rounded mt-2" placeholder="y">
+                            </div>
+                        </div>
+                        <button onclick="calcLinePointSymmetry()" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 mt-4">
+                            计算对称直线
+                        </button>
+                        <div id="lp-result" class="mt-4 space-y-2"></div>
+                    </div>
+            
+                    <!-- 直线关于直线对称 -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold mb-4">直线关于直线对称</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block mb-2">原直线 Px+Qy+R=0</label>
+                                <input type="text" id="ll-P" class="w-full p-2 border rounded" placeholder="P">
+                                <input type="text" id="ll-Q" class="w-full p-2 border rounded mt-2" placeholder="Q">
+                                <input type="text" id="ll-R" class="w-full p-2 border rounded mt-2" placeholder="R">
+                            </div>
+                            <div>
+                                <label class="block mb-2">对称轴 Ax+By+C=0</label>
+                                <input type="text" id="ll-A" class="w-full p-2 border rounded" placeholder="A">
+                                <input type="text" id="ll-B" class="w-full p-2 border rounded mt-2" placeholder="B">
+                                <input type="text" id="ll-C" class="w-full p-2 border rounded mt-2" placeholder="C">
+                            </div>
+                        </div>
+                        <button onclick="calcLineLineSymmetry()" class="w-full bg-purple-500 text-white p-2 rounded hover:bg-purple-600 mt-4">
+                            计算对称直线
+                        </button>
+                        <div id="ll-result" class="mt-4 space-y-2"></div>
+                    </div>
+            
+                    <!-- 三点求圆 -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold mb-4">三点确定圆的方程</h2>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block mb-2">点1 (x,y)</label>
+                                <input type="text" id="c-x1" class="w-full p-2 border rounded" placeholder="x1">
+                                <input type="text" id="c-y1" class="w-full p-2 border rounded mt-2" placeholder="y1">
+                            </div>
+                            <div>
+                                <label class="block mb-2">点2 (x,y)</label>
+                                <input type="text" id="c-x2" class="w-full p-2 border rounded" placeholder="x2">
+                                <input type="text" id="c-y2" class="w-full p-2 border rounded mt-2" placeholder="y2">
+                            </div>
+                            <div>
+                                <label class="block mb-2">点3 (x,y)</label>
+                                <input type="text" id="c-x3" class="w-full p-2 border rounded" placeholder="x3">
+                                <input type="text" id="c-y3" class="w-full p-2 border rounded mt-2" placeholder="y3">
+                            </div>
+                        </div>
+                        <button onclick="calcCircle()" class="w-full bg-orange-500 text-white p-2 rounded hover:bg-orange-600 mt-4">
+                            计算圆方程
+                        </button>
+                        <div id="c-result" class="mt-4 space-y-2"></div>
+                    </div>
+                </div>
+            
+                <script>
+                    // 公共函数：解析分数输入
+                    function parseFraction(input) {
+                        try {
+                            if (input.includes('/')) {
+                                const [numerator, denominator] = input.split('/').map(Number)
+                                return new Fraction(numerator, denominator)
+                            }
+                            return new Fraction(parseFloat(input))
+                        } catch {
+                            return null
+                        }
+                    }
+            
+                    // 二阶行列式计算
+                    function det2(a, b, c, d) {
+                        return a.mul(d).sub(b.mul(c))
+                    }
+            
+                    // 解二元一次方程组
+                    function solveSystem(a1, b1, c1, a2, b2, c2) {
+                        const D = det2(a1, b1, a2, b2)
+                        if (D.valueOf() === 0) return [null, null]
+                        const Dx = det2(c1, b1, c2, b2)
+                        const Dy = det2(a1, c1, a2, c2)
+                        return [Dx.div(D), Dy.div(D)]
+                    }
+            
+                    // 点关于直线对称
+                    // 点关于直线对称
+function calcPointLineSymmetry() {
+    const result = document.getElementById('pl-result')
+    result.innerHTML = ''
+
+    // 解析输入
+    const x = parseFraction(document.getElementById('pl-x').value)
+    const y = parseFraction(document.getElementById('pl-y').value)
+    const A = parseFraction(document.getElementById('pl-A').value)
+    const B = parseFraction(document.getElementById('pl-B').value)
+    const C = parseFraction(document.getElementById('pl-C').value)
+
+    if (!x || !y || !A || !B || !C) {
+        result.innerHTML = '<p class="text-red-500">错误：请输入有效的数值</p>'
+        return
+    }
+
+    // 构造方程组（修复方程构造）
+    const equation1 = A.mul(x).add(B.mul(y)).add(C.mul(2)).neg() // 正确构造方程右侧
+    const equation2 = B.mul(x).sub(A.mul(y)) 
+
+    const [m, n] = solveSystem(
+        A, B, equation1,       // 第一个方程: A*m + B*n = -(Ax + By + 2C)
+        B, A.mul(-1), equation2 // 第二个方程: B*m - A*n = Bx - Ay
+    )
+
+    if (m && n) {
+        result.innerHTML = `
+            <p class="font-medium">对称点坐标:</p>
+            <p>(${m.toFraction()}, ${n.toFraction()})</p>
+            <p>近似值: (${m.valueOf().toFixed(2)}, ${n.valueOf().toFixed(2)})</p>
+        `
+    } else {
+        result.innerHTML = '<p class="text-red-500">错误：无法求解，可能直线不存在对称点</p>'
+    }
+}
+            
+                    // 直线关于点对称
+                    function calcLinePointSymmetry() {
+                        const result = document.getElementById('lp-result')
+                        result.innerHTML = ''
+            
+                        const A = parseFraction(document.getElementById('lp-A').value)
+                        const B = parseFraction(document.getElementById('lp-B').value)
+                        const C = parseFraction(document.getElementById('lp-C').value)
+                        const x = parseFraction(document.getElementById('lp-x').value)
+                        const y = parseFraction(document.getElementById('lp-y').value)
+            
+                        if (!A || !B || !C || !x || !y) {
+                            result.innerHTML = '<p class="text-red-500">错误：请输入有效的数值</p>'
+                            return
+                        }
+            
+                        const m = A.mul(-2).mul(x).sub(B.mul(2).mul(y)).sub(C)
+                        
+                        result.innerHTML = `
+                            <p class="font-medium">对称直线方程:</p>
+                            <p>${A.toFraction()}x + ${B.toFraction()}y + ${m.toFraction()} = 0</p>
+                            <p>近似值: ${A.valueOf().toFixed(2)}x + ${B.valueOf().toFixed(2)}y + ${m.valueOf().toFixed(2)} = 0</p>
+                        `
+                    }
+            
+                    // 直线关于直线对称
+                    function calcLineLineSymmetry() {
+                        const result = document.getElementById('ll-result')
+                        result.innerHTML = ''
+            
+                        const P = parseFraction(document.getElementById('ll-P').value)
+                        const Q = parseFraction(document.getElementById('ll-Q').value)
+                        const R = parseFraction(document.getElementById('ll-R').value)
+                        const A = parseFraction(document.getElementById('ll-A').value)
+                        const B = parseFraction(document.getElementById('ll-B').value)
+                        const C = parseFraction(document.getElementById('ll-C').value)
+            
+                        if (!P || !Q || !R || !A || !B || !C) {
+                            result.innerHTML = '<p class="text-red-500">错误：请输入有效的数值</p>'
+                            return
+                        }
+            
+                        const k = P.mul(A).add(Q.mul(B)).mul(2).div(A.pow(2).add(B.pow(2)))
+                        const newP = P.sub(A.mul(k))
+                        const newQ = Q.sub(B.mul(k))
+                        const newR = R.sub(C.mul(k))
+            
+                        result.innerHTML = `
+                            <p class="font-medium">对称直线方程:</p>
+                            <p>${newP.toFraction()}x + ${newQ.toFraction()}y + ${newR.toFraction()} = 0</p>
+                            <p>近似值: ${newP.valueOf().toFixed(2)}x + ${newQ.valueOf().toFixed(2)}y + ${newR.valueOf().toFixed(2)} = 0</p>
+                        `
+                    }
+            
+                    // 三点确定圆
+                    function calcCircle() {
+                        const result = document.getElementById('c-result')
+                        result.innerHTML = ''
+            
+                        // 解析三个点坐标
+                        const x1 = parseFraction(document.getElementById('c-x1').value)
+                        const y1 = parseFraction(document.getElementById('c-y1').value)
+                        const x2 = parseFraction(document.getElementById('c-x2').value)
+                        const y2 = parseFraction(document.getElementById('c-y2').value)
+                        const x3 = parseFraction(document.getElementById('c-x3').value)
+                        const y3 = parseFraction(document.getElementById('c-y3').value)
+            
+                        if (!x1 || !y1 || !x2 || !y2 || !x3 || !y3) {
+                            result.innerHTML = '<p class="text-red-500">错误：请输入有效的坐标值</p>'
+                            return
+                        }
+            
+                        // 构造方程组
+                        const z1 = x1.pow(2).add(y1.pow(2))
+                        const z2 = x2.pow(2).add(y2.pow(2))
+                        const z3 = x3.pow(2).add(y3.pow(2))
+            
+                        const [D, E] = solveSystem(
+                            x1.sub(x2), y1.sub(y2), z2.sub(z1),
+                            x1.sub(x3), y1.sub(y3), z3.sub(z1)
+                        )
+            
+                        if (!D || !E) {
+                            result.innerHTML = '<p class="text-red-500">错误：三点共线或无法形成圆</p>'
+                            return
+                        }
+            
+                        const F = z1.neg().sub(D.mul(x1)).sub(E.mul(y1))
+                        const r2 = D.pow(2).add(E.pow(2)).sub(F.mul(4)).div(4)
+            
+                        result.innerHTML = `
+                            <div class="space-y-2">
+                                <p class="font-medium">圆方程参数:</p>
+                                <p>D = ${D.toFraction()}, E = ${E.toFraction()}, F = ${F.toFraction()}</p>
+                                <p>圆心坐标: (-${D.div(2).toFraction()}, -${E.div(2).toFraction()})</p>
+                                <p>半径平方: ${r2.toFraction()} ≈ ${r2.valueOf().toFixed(4)}</p>
+                            </div>
+                        `
+                    }
+                </script>
+            </body>
+            </html>
+            
+        </div>
+        <div id="distribution" class="tool-content">
+    <div class="min-h-[60vh] flex items-center justify-center">
+        <div class="max-w-2xl mx-auto space-y-8 p-6">
+            <!-- 二项分布计算器 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">二项分布计算器</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block mb-2">试验次数 (n)</label>
+                        <input type="number" id="bin-n" class="w-full p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block mb-2">成功概率 (p)</label>
+                        <input type="text" id="bin-p" class="w-full p-2 border rounded" placeholder="例如: 0.5 或 1/3">
+                    </div>
+                    <button onclick="calculateBinomial()" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+                        计算二项分布
+                    </button>
+                    <div id="bin-results" class="mt-4 space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- 超几何分布计算器 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4">超几何分布计算器</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block mb-2">总数 (N)</label>
+                        <input type="number" id="hyp-N" class="w-full p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block mb-2">成功元素数 (M)</label>
+                        <input type="number" id="hyp-M" class="w-full p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block mb-2">抽取数 (n)</label>
+                        <input type="number" id="hyp-n" class="w-full p-2 border rounded">
+                    </div>
+                    <button onclick="calculateHypergeometric()" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">
+                        计算超几何分布
+                    </button>
+                    <div id="hyp-results" class="mt-4 space-y-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    </div>
+<script>
+// 步骤3：在现有脚本末尾添加概率计算函数
+(function(){
+    // 组合数计算函数
+    function combination(n, k) {
+        if (k > n) return 0;
+        if (k === 0 || k === n) return 1;
+        k = Math.min(k, n - k);
+        let result = 1;
+        for (let i = 1; i <= k; i++) {
+            result = result * (n - k + i) / i;
+        }
+        return Math.round(result);
+    }
+
+    // 二项分布计算
+    function calculateBinomial() {
+        try {
+            const n = parseInt(document.getElementById('bin-n').value);
+            const p = new Fraction(document.getElementById('bin-p').value);
+            const results = document.getElementById('bin-results');
+            
+            const EX = p.mul(n);
+            const DX = EX.mul(new Fraction(1).sub(p));
+            
+            results.innerHTML = `
+                <p class="font-medium">期望 EX = ${EX.toFraction()}</p>
+                <p class="font-medium">方差 DX = ${DX.toFraction()}</p>
+                <div class="mt-4 space-y-1">
+                    <p class="font-medium">概率分布：</p>
+                    ${Array.from({length: n+1}, (_,k) => 
+                        `<p>P(X = ${k}) = ${new Fraction(combination(n, k))
+                            .mul(p.pow(k))
+                            .mul(new Fraction(1).sub(p).pow(n - k)).toFraction()}</p>`
+                    ).join('')}
+                </div>
+            `;
+        } catch(e) {
+            alert('输入参数错误：' + e.message);
+        }
+    }
+
+    // 超几何分布计算
+    function calculateHypergeometric() {
+        try {
+            const N = parseInt(document.getElementById('hyp-N').value);
+            const M = parseInt(document.getElementById('hyp-M').value);
+            const n = parseInt(document.getElementById('hyp-n').value);
+            const results = document.getElementById('hyp-results');
+            
+            const EX = new Fraction(M * n, N);
+            const DX = new Fraction(M * (N - M) * n * (N - n), N * N * (N - 1));
+            
+            const m = Math.max(0, n - (N - M));
+            const r = Math.min(n, M);
+            
+            results.innerHTML = `
+                <p class="font-medium">期望 EX = ${EX.toFraction()}</p>
+                <p class="font-medium">方差 DX = ${DX.toFraction()}</p>
+                <div class="mt-4 space-y-1">
+                    <p class="font-medium">概率分布：</p>
+                    ${Array.from({length: r - m +1}, (_,i) => {
+                        const k = m + i;
+                        return `<p>P(X = ${k}) = ${new Fraction(
+                            combination(M, k) * combination(N - M, n - k), 
+                            combination(N, n)).toFraction()}</p>`;
+                    }).join('')}
+                </div>
+            `;
+        } catch(e) {
+            alert('输入参数错误：' + e.message);
+        }
+    }
+
+    // 暴露函数到全局
+    window.calculateBinomial = calculateBinomial;
+    window.calculateHypergeometric = calculateHypergeometric;
+})();
+</script>
+    <script>
+        // 导航切换功能调整
+        document.addEventListener('DOMContentLoaded', function() {
+            const navButtons = document.querySelectorAll('.nav-btn');
+            const toolContents = document.querySelectorAll('.tool-content');
+
+            // 默认激活第一个工具（文件加密）
+            toolContents[0].classList.add('active');
+            navButtons[0].classList.add('active');
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const toolId = this.dataset.tool;
+
+                    navButtons.forEach(btn => btn.classList.remove('active'));
+                    toolContents.forEach(content => content.classList.remove('active'));
+
+                    this.classList.add('active');
+                    document.getElementById(toolId).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
