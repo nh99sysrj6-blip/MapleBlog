@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -164,7 +164,21 @@
                         to { transform: rotate(360deg); }
                     }
                 </style>
-            </body>
+            <script>
+  (function() {
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var obs = new MutationObserver(reportHeight);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true });
+    setTimeout(reportHeight, 300);
+    setTimeout(reportHeight, 1000);
+  })();
+</script>
+</body>
             </html>
             
         </div>
@@ -269,7 +283,21 @@
                         }
                     }
                 </script>
-            </body>
+            <script>
+  (function() {
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var obs = new MutationObserver(reportHeight);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true });
+    setTimeout(reportHeight, 300);
+    setTimeout(reportHeight, 1000);
+  })();
+</script>
+</body>
             </html>
             
         </div>
@@ -411,7 +439,21 @@
 })();
                     
                 </script>
-            </body>
+            <script>
+  (function() {
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var obs = new MutationObserver(reportHeight);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true });
+    setTimeout(reportHeight, 300);
+    setTimeout(reportHeight, 1000);
+  })();
+</script>
+</body>
             </html>
             
         </div>
@@ -560,7 +602,21 @@
                         results.innerHTML = output
                     }
                 </script>
-            </body>
+            <script>
+  (function() {
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var obs = new MutationObserver(reportHeight);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true });
+    setTimeout(reportHeight, 300);
+    setTimeout(reportHeight, 1000);
+  })();
+</script>
+</body>
             </html>
             
         </div>
@@ -839,7 +895,21 @@ function calcPointLineSymmetry() {
                         `
                     }
                 </script>
-            </body>
+            <script>
+  (function() {
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var obs = new MutationObserver(reportHeight);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true });
+    setTimeout(reportHeight, 300);
+    setTimeout(reportHeight, 1000);
+  })();
+</script>
+</body>
             </html>
             
         </div>
@@ -993,5 +1063,19 @@ function calcPointLineSymmetry() {
             });
         });
     </script>
+<script>
+  (function() {
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var obs = new MutationObserver(reportHeight);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true });
+    setTimeout(reportHeight, 300);
+    setTimeout(reportHeight, 1000);
+  })();
+</script>
 </body>
 </html>

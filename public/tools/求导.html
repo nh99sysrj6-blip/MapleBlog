@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <title>导数计算器</title>
@@ -48,5 +48,19 @@
             }
         }
     </script>
+<script>
+  (function() {
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var obs = new MutationObserver(reportHeight);
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true });
+    setTimeout(reportHeight, 300);
+    setTimeout(reportHeight, 1000);
+  })();
+</script>
 </body>
 </html>
