@@ -23,12 +23,15 @@
     "build:prod": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=4096' astro build",
     "postbuild": "pagefind --site dist",
     "format": "prettier -w ./src",
-    "preview": "astro preview",
+    "preview": "npm run build && wrangler dev",
     "serve": "astro preview",
     "clean": "rm -rf dist",
-    "build:analyze": "NODE_OPTIONS='--max-old-space-size=4096' astro build --verbose"
+    "build:analyze": "NODE_OPTIONS='--max-old-space-size=4096' astro build --verbose",
+    "deploy": "npm run build && wrangler deploy",
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "12",
     "@astrojs/mdx": "^4.3.0",
     "@astrojs/node": "^9.3.0",
     "@astrojs/react": "^4.3.0",
@@ -91,6 +94,7 @@
     "tailwind-bootstrap-grid": "^5.0.1",
     "tailwindcss": "^3.3.3",
     "tsx": "^4.20.5",
-    "typescript": "5.1.6"
+    "typescript": "5.1.6",
+    "wrangler": "^4.78.0"
   }
 }
