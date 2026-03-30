@@ -2,8 +2,6 @@
 import { getCollection } from "astro:content";
 import EntryLayout from "@components/tools/EntryLayout.astro";
 import { slugify } from "@lib/textConverter";
-import fs from "node:fs";
-import path from "node:path";
 
 export async function getStaticPaths() {
   const allTools = await getCollection("tools");
@@ -16,28 +14,6 @@ export async function getStaticPaths() {
 }
 
 const { entry } = Astro.props;
-
-// 读取 public/tools/ 下对应的 html 文件内容
-const htmlFilePath = path.join(process.cwd(), "public", "tools", entry.data.file!);
-let htmlContent = "";
-try {
-  const raw = fs.readFileSync(htmlFilePath, "utf-8");
-  // 提取 <head> 里的 <style> 和 <script>
-  const headMatch = raw.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-  let headAssets = "";
-  if (headMatch) {
-    const styleMatches = headMatch[1].matchAll(/<style[\s\S]*?<\/style>/gi);
-    const scriptMatches = headMatch[1].matchAll(/<script[\s\S]*?<\/script>/gi);
-    for (const m of styleMatches) headAssets += m[0];
-    for (const m of scriptMatches) headAssets += m[0];
-  }
-  // 提取 <body> 内容
-  const bodyMatch = raw.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-  const bodyContent = bodyMatch ? bodyMatch[1] : raw;
-  htmlContent = headAssets + bodyContent;
-} catch (e) {
-  htmlContent = "<p>工具文件加载失败。</p>";
-}
 ---
 
-<EntryLayout entry={entry} htmlContent={htmlContent} />
+<EntryLayout entry={entry} />

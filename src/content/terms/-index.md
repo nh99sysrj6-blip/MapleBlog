@@ -51,6 +51,8 @@ title: 版权协议与隐私政策
 
 本网站基于 [Astrogon](https://github.com/astrogon/astrogon) 开发，遵循 MIT 开源协议。网站源代码的使用请遵循相应的开源协议条款。
 
+本站使用的博客框架源码：[MapleBlog](https://github.com/nh99sysrj6-blip/MapleBlog)
+
 ---
 
 ## 隐私政策

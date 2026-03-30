@@ -5,11 +5,11 @@ import type { CollectionEntry } from "astro:content";
 
 interface Props {
   entry: CollectionEntry<"tools">;
-  htmlContent: string;
 }
 
-const { entry, htmlContent } = Astro.props;
-const { title, description, tags, icon } = entry.data;
+const { entry } = Astro.props;
+const { title, description, tags, icon, file } = entry.data;
+const toolUrl = `/tools/${file}`;
 ---
 
 <BaseLayout title={title} description={description}>
@@ -38,16 +38,56 @@ const { title, description, tags, icon } = entry.data;
       )}
     </LiquidGlass>
 
-    <!-- 工具内容区（直接内联渲染 html） -->
-    <LiquidGlass heavy textClass="p-4 md:p-6" animation="fadeUp">
-      <div class="tool-content" set:html={htmlContent} />
+    <!-- 工具内容区：iframe 自适应高度 -->
+    <LiquidGlass heavy textClass="p-2" animation="fadeUp">
+      <iframe
+        id="tool-iframe"
+        src={toolUrl}
+        title={title}
+        scrolling="no"
+        class="w-full rounded-xl border-0 block"
+        style="min-height: 400px;"
+        sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"
+      />
     </LiquidGlass>
   </div>
 </BaseLayout>
 
-<style is:global>
-  /* 隔离工具内容的样式，避免影响全局 */
-  .tool-content {
-    all: revert;
+<script>
+  // 让 iframe 高度自适应内容，避免出现滚动条
+  function resizeIframe() {
+    const iframe = document.getElementById("tool-iframe") as HTMLIFrameElement;
+    if (!iframe) return;
+
+    function setHeight() {
+      try {
+        const body = iframe.contentDocument?.body;
+        const html = iframe.contentDocument?.documentElement;
+        if (!body || !html) return;
+        const height = Math.max(
+          body.scrollHeight,
+          body.offsetHeight,
+          html.scrollHeight,
+          html.offsetHeight
+        );
+        iframe.style.height = height + 32 + "px";
+      } catch (e) {
+        // 跨域时无法访问，保持默认高度
+      }
+    }
+
+    iframe.addEventListener("load", () => {
+      setHeight();
+      // 内容可能动态变化，持续监听
+      try {
+        const resizeObs = new ResizeObserver(setHeight);
+        if (iframe.contentDocument?.body) {
+          resizeObs.observe(iframe.contentDocument.body);
+        }
+      } catch (e) {}
+    });
   }
-</style>
+
+  document.addEventListener("DOMContentLoaded", resizeIframe);
+  document.addEventListener("astro:page-load", resizeIframe);
+</script>

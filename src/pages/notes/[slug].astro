@@ -199,13 +199,13 @@ const { Content } = await render(entry);
           <div class="border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
             <div class="flex justify-around">
 
-              <button
+              {/* <button
                 id="commentBtn"
                 class="flex items-center gap-2 text-gray-700 dark:text-gray-100 hover:text-blue-500 transition-colors"
               >
                 <FaRegComment />
                 <span>评论</span>
-              </button>
+              </button> */}
               <button
                 id="bookmarkBtn"
                 class="flex items-center gap-2 text-gray-700 dark:text-gray-100 hover:text-yellow-500 transition-colors"
@@ -224,16 +224,15 @@ const { Content } = await render(entry);
           </div>
         </LiquidGlass>
 
-        <!-- 评论区占位 -->
-        <LiquidGlass
+        {/* 评论区已关闭 */}
+        {/* <LiquidGlass
           heavy
           containerClass="pb-6 rounded-xl"
           textClass="p-5"
         >
           <h3 class="text-xl font-bold mb-4">评论</h3>
           <Comment />
-          
-        </LiquidGlass>
+        </LiquidGlass> */}
       </div>
 
       <!-- 侧边栏 -->
