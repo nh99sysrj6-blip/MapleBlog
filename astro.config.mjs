@@ -10,6 +10,8 @@ import remarkMath from "remark-math";
 import rehypeExternalLinks from "rehype-external-links";
 import { fileURLToPath, URL } from "node:url";
 
+import cloudflare from "@astrojs/cloudflare";
+
 // 获取环境变量
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const isProduction = NODE_ENV === 'production';
@@ -33,11 +35,13 @@ export default defineConfig({
   base: "/",
   trailingSlash: "ignore",
   output: "static",
+
   server: {
     // 允许通过本机IP访问开发服务器
     host: true, // 或者使用 '0.0.0.0'
     port: 4321
   },
+
   build: {
     // 静态站点构建优化
     inlineStylesheets: "auto",
@@ -47,10 +51,12 @@ export default defineConfig({
     // 分割代码以减少单个文件大小
     split: true
   },
+
   prefetch: {
     // 在开发环境禁用预取以加快构建
     prefetchAll: isProduction
   },
+
   integrations: [
     react(), 
     tailwind({
@@ -61,6 +67,7 @@ export default defineConfig({
     }), 
     mdx()
   ],
+
   markdown: {
     remarkPlugins: [remarkToc, [remarkCollapse, {
       test: "Table of contents"
@@ -87,6 +94,7 @@ export default defineConfig({
     },
     extendDefaultPlugins: true
   },
+
   image: {
     // 配置图片处理
     remotePatterns: [{
@@ -105,4 +113,6 @@ export default defineConfig({
     // 启用图片缓存以加速重复构建
     experimentalLayout: "constrained"
   },
+
+  adapter: cloudflare()
 });
