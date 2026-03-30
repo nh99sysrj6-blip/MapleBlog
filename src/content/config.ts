@@ -75,28 +75,28 @@ const blog = defineCollection({
     }),
 });
 
-// 分类集合
-const categories = defineCollection({
-  loader: glob({ pattern: "**\/[^_]*.{md,mdx}", base: "./src/content/categories" }),
-  schema: ({ image }) =>
-    baseContent.extend({
-      slug: z.string().optional(),
-      icon: z.string().optional(),
-      image: image().optional(),
-      imageAlt: z.string().default(""),
-      color: z.string().default("#007bff"),
-      parentId: z.string().optional(),
-    }),
-});
+// 分类集合（目录不存在时注释）
+// const categories = defineCollection({
+//   loader: glob({ pattern: "**\/[^_]*.{md,mdx}", base: "./src/content/categories" }),
+//   schema: ({ image }) =>
+//     baseContent.extend({
+//       slug: z.string().optional(),
+//       icon: z.string().optional(),
+//       image: image().optional(),
+//       imageAlt: z.string().default(""),
+//       color: z.string().default("#007bff"),
+//       parentId: z.string().optional(),
+//     }),
+// });
 
 
-// 标签集合
-const tags = defineCollection({
-  loader: glob({ pattern: "**\/[^_]*.{md,mdx}", base: "./src/content/tags" }),
-  schema: baseContent.extend({
-    color: z.string().default("#007bff"),
-  }),
-});
+// 标签集合（目录不存在时注释）
+// const tags = defineCollection({
+//   loader: glob({ pattern: "**\/[^_]*.{md,mdx}", base: "./src/content/tags" }),
+//   schema: baseContent.extend({
+//     color: z.string().default("#007bff"),
+//   }),
+// });
 
 // 动态/笔记集合
 const notes = defineCollection({
@@ -156,18 +156,18 @@ const home = defineCollection({
     }),
  });
 
-// 搜索配置集合
-const search = defineCollection({
-  loader: glob({ pattern: "-index.{md,mdx}", base: "./src/content/search" }),
-  schema: baseContent.extend({
-    searchableCollections: z.array(z.string()).default(["blog", "notes", "pages"]),
-    searchConfig: z.object({
-      placeholder: z.string().default("搜索内容..."),
-      maxResults: z.number().default(10),
-      enableHighlight: z.boolean().default(true),
-    }).optional(),
-  }),
-});
+// 搜索配置集合（目录不存在时注释）
+// const search = defineCollection({
+//   loader: glob({ pattern: "-index.{md,mdx}", base: "./src/content/search" }),
+//   schema: baseContent.extend({
+//     searchableCollections: z.array(z.string()).default(["blog", "notes", "pages"]),
+//     searchConfig: z.object({
+//       placeholder: z.string().default("搜索内容..."),
+//       maxResults: z.number().default(10),
+//       enableHighlight: z.boolean().default(true),
+//     }).optional(),
+//   }),
+// });
 
 // 社交媒体配置集合
 const socialConfig = defineCollection({
@@ -190,7 +190,7 @@ const terms = defineCollection({
 const tools = defineCollection({
   loader: glob({ pattern: "**\/[^_]*.{md,mdx}", base: "./src/content/tools" }),
   schema: baseContent.extend({
-    file: z.string(), // 对应 public/tools/ 下的 html 文件名
+    file: z.string().optional(), // 对应 public/tools/ 下的 html 文件名，-index.md 不需要
     tags: z.array(z.string()).optional(),
     icon: z.string().optional(),
   }),
@@ -200,12 +200,9 @@ const tools = defineCollection({
 export const collections = {
   about,
   blog,
-  categories,
-  tags,
   notes,
   pages,
   home,
-  search,
   social: socialConfig,
   terms,
   tools,
