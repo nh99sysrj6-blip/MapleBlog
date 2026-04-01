@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <link rel="icon" href="../../favicon.svg">
@@ -265,7 +265,21 @@
             }
         }
     </style>
-</head>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var mo = new MutationObserver(reportHeight);
+    document.addEventListener('DOMContentLoaded', function() {
+      mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+    });
+  </script></head>
 <body>
     <div class="shell">
         <header>

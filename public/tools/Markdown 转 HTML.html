@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <link rel="icon" href="../../favicon.svg">
@@ -216,10 +216,22 @@
             transform: translateY(-1px);
         }
     </style>
-</head>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var mo = new MutationObserver(reportHeight);
+    document.addEventListener('DOMContentLoaded', function() {
+      mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+    });
+  </script></head>
 <body>
-    <a class="tool-home-link" href="../../index.html">首页</a>
-    <a class="tool-doc-link" href="index.html">说明</a>
     <div class="container">
         <div class="header">
             <h1>Markdown 转 HTML</h1>
@@ -414,7 +426,21 @@
         th, td { border: 1px solid #ddd; padding: 8px 12px; }
         th { background: #f4f4f4; }
     </style>
-</head>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    function reportHeight() {
+      var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+    }
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
+    var mo = new MutationObserver(reportHeight);
+    document.addEventListener('DOMContentLoaded', function() {
+      mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+    });
+  </script></head>
 <body>
 ${html}
     
