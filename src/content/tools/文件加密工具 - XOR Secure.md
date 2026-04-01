@@ -1,4 +1,4 @@
----
+﻿---
 title: 文件加密工具 - XOR Secure
 description: 文件加密工具 - XOR Secure
 file: 文件加密工具 - XOR Secure.html
