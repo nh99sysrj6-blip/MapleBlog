@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>等差乘等比求和计算器</title>
+  <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.2.0/fraction.min.js"></script>
   <style>
     html, body { background: transparent !important; min-height: unset !important; }
   </style>
@@ -21,224 +22,92 @@
       });
     })();
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.3.7/fraction.min.js"></script>
 </head>
 <body>
-<div class="container">
-  <div class="card">
-    <h2 class="title">∑ 等差乘等比求和计算器</h2>
-    <p class="desc">
-      计算形如 <code>Sₙ = Σ (a·k + b) · q^(k+m)</code> 的求和，使用错位相减法，结果表示为 <code>Sₙ = A·q^(n+m+1) + B</code>。
-    </p>
-    <div class="form-row">
-      <div class="form-item">
-        <label>a（等差系数）</label>
-        <input type="text" id="a" placeholder="例如：1" value="1">
-      </div>
-      <div class="form-item">
-        <label>b（常数项）</label>
-        <input type="text" id="b" placeholder="例如：0" value="0">
-      </div>
-      <div class="form-item">
-        <label>q（公比，≠1）</label>
-        <input type="text" id="q" placeholder="例如：1/2" value="1/2">
-      </div>
-      <div class="form-item">
-        <label>m（指数调整）</label>
-        <input type="text" id="m" placeholder="例如：0" value="0">
-      </div>
+  <div class="wrap">
+    <h1>错位相减法计算器</h1>
+
+    <div class="field">
+      <label>a (系数):</label>
+      <input type="text" id="a" placeholder="如: 3/4 或 0.75">
     </div>
-    <p class="formula-hint" id="formula-hint"></p>
-    <div class="btn-row">
-      <button class="btn-primary" onclick="calculate()">计算</button>
-      <button class="btn-secondary" onclick="clearAll()">清空</button>
+    <div class="field">
+      <label>b (常数项):</label>
+      <input type="text" id="b" placeholder="如: 1/2 或 0.5">
     </div>
-    <div id="result" class="result-box" style="display:none">
-      <div class="result-section">
-        <div class="result-title">求和结果</div>
-        <div class="result-formula" id="res-formula"></div>
-      </div>
-      <div class="result-section">
-        <div class="result-title">推导过程</div>
-        <div class="steps" id="res-steps"></div>
-      </div>
+    <div class="field">
+      <label>q (公比):</label>
+      <input type="text" id="q" placeholder="如: 2 或 1/3">
     </div>
-    <div id="msg" class="msg"></div>
+    <div class="field">
+      <label>m (指数调整):</label>
+      <input type="text" id="m" placeholder="整数，如: 2">
+    </div>
+
+    <button onclick="calculate()">计算</button>
+
+    <div id="result" class="result" style="display:none">
+      <p class="formula">结果公式：Sₙ = (A⋅n + B)qⁿ - B</p>
+      <p class="val">A = <span id="A-value"></span></p>
+      <p class="val">B = <span id="B-value"></span></p>
+    </div>
   </div>
-</div>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
-  .container { max-width: 700px; margin: 0 auto; }
-  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
-  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
-  .desc { font-size: 0.88rem; color: #64748b; margin-bottom: 16px; }
-  code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; }
-  .form-row { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
-  .form-item { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 120px; }
-  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
-  input[type="text"] { padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; background: #f8fafc; width: 100%; }
-  input:focus { border-color: #10b981; background: #fff; }
-  .formula-hint { font-size: 0.85rem; color: #64748b; margin-bottom: 14px; font-family: 'Courier New', monospace; min-height: 20px; }
-  .btn-row { display: flex; gap: 10px; margin-bottom: 18px; }
-  .btn-primary { background: #10b981; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-  .btn-primary:hover { background: #059669; }
-  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
-  .btn-secondary:hover { background: #e2e8f0; }
-  .result-box { background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 18px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 16px; }
-  .result-section { }
-  .result-title { font-size: 0.85rem; font-weight: 700; color: #065f46; margin-bottom: 8px; }
-  .result-formula { font-size: 1.1rem; font-weight: 700; color: #1e293b; font-family: 'Courier New', monospace; background: #fff; border-radius: 8px; padding: 12px 16px; border: 1px solid #d1fae5; word-break: break-all; }
-  .steps { font-size: 0.88rem; color: #334155; font-family: 'Courier New', monospace; background: #fff; border-radius: 8px; padding: 12px 16px; border: 1px solid #d1fae5; line-height: 2; white-space: pre-wrap; word-break: break-all; }
-  .msg { font-size: 0.85rem; min-height: 20px; color: #ef4444; margin-top: 6px; }
-  @media (max-width: 500px) { .form-row { flex-direction: column; } }
-</style>
-<script>
-  function parseFrac(s) {
-    s = s.trim();
-    if (s === '' || s === undefined) return null;
-    try { return new Fraction(s); } catch(e) { return null; }
-  }
 
-  function fStr(f) {
-    if (!f) return '?';
-    if (f.d === 1) return String(f.s * f.n);
-    return (f.s < 0 ? '-' : '') + f.n + '/' + f.d;
-  }
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; display: flex; justify-content: center; padding: 32px 16px; }
+    .wrap { background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); width: 100%; max-width: 384px; }
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1f2937; margin-bottom: 24px; }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 4px; }
+    input { width: 100%; border: 1px solid #d1d5db; border-radius: 4px; padding: 8px 12px; font-size: 0.9rem; outline: none; transition: border-color 0.15s; }
+    input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+    button { width: 100%; background: #3b82f6; color: #fff; border: none; border-radius: 4px; padding: 10px 16px; font-size: 0.95rem; cursor: pointer; margin-top: 24px; transition: background 0.15s; }
+    button:hover { background: #2563eb; }
+    .result { margin-top: 24px; padding: 16px; background: #f9fafb; border-radius: 4px; }
+    .formula { font-weight: 500; color: #1f2937; margin-bottom: 12px; }
+    .val { font-size: 0.875rem; color: #374151; margin-top: 8px; }
+    .val span { font-family: 'Courier New', monospace; color: #2563eb; font-weight: 600; }
+  </style>
 
-  function updateHint() {
-    var a = document.getElementById('a').value.trim() || 'a';
-    var b = document.getElementById('b').value.trim() || 'b';
-    var q = document.getElementById('q').value.trim() || 'q';
-    var m = document.getElementById('m').value.trim() || 'm';
-    document.getElementById('formula-hint').textContent =
-      'Sₙ = Σ_{k=1}^{n} (' + a + '·k + ' + b + ') · ' + q + '^(k+' + m + ')';
-  }
-
-  ['a','b','q','m'].forEach(function(id) {
-    document.getElementById(id).addEventListener('input', updateHint);
-  });
-  updateHint();
-
-  function calculate() {
-    var aF = parseFrac(document.getElementById('a').value);
-    var bF = parseFrac(document.getElementById('b').value);
-    var qF = parseFrac(document.getElementById('q').value);
-    var mF = parseFrac(document.getElementById('m').value);
-
-    if (!aF) { showMsg('a 格式错误'); return; }
-    if (!bF) { showMsg('b 格式错误'); return; }
-    if (!qF) { showMsg('q 格式错误'); return; }
-    if (!mF) { showMsg('m 格式错误'); return; }
-    if (qF.valueOf() === 1) { showMsg('q 不能等于 1（请使用等差数列求和公式）'); return; }
-    if (qF.valueOf() === 0) { showMsg('q 不能等于 0'); return; }
-
-    // Sₙ = Σ_{k=1}^{n} (a*k + b) * q^(k+m)
-    // 令 T = Σ_{k=1}^{n} k * q^(k+m)，U = Σ_{k=1}^{n} q^(k+m)
-    // U = q^(m+1) * (q^n - 1) / (q - 1)
-    // T 用错位相减法：
-    //   T = q^(m+1) + 2q^(m+2) + ... + n*q^(n+m)
-    //   qT = q^(m+2) + 2q^(m+3) + ... + n*q^(n+m+1)
-    //   T - qT = q^(m+1) + q^(m+2) + ... + q^(n+m) - n*q^(n+m+1)
-    //   T(1-q) = q^(m+1)*(1-q^n)/(1-q) - n*q^(n+m+1)
-    //   T = q^(m+1)*(1-q^n)/(1-q)^2 - n*q^(n+m+1)/(1-q)
-    // Sₙ = a*T + b*U
-    // = a * [q^(m+1)*(1-q^n)/(1-q)^2 - n*q^(n+m+1)/(1-q)]
-    //   + b * q^(m+1)*(q^n-1)/(q-1)
-    // Rearranging to Sₙ = A*q^(n+m+1) + B (where A,B may contain n):
-    // Actually the standard form is:
-    // Sₙ = [A*n + C]*q^(n+m+1) + D
-    // Let's compute symbolically:
-    // 1-q denominator
-    var one = new Fraction(1);
-    var oneMinusQ = one.sub(qF);  // 1-q
-    var qMinusOne = qF.sub(one);  // q-1
-
-    // T = q^(m+1)/(1-q)^2 * (1-q^n) - n*q^(n+m+1)/(1-q)
-    // Sₙ = a*T + b*U
-    // = a*q^(m+1)/(1-q)^2 - a*q^(m+1)*q^n/(1-q)^2 - a*n*q^(n+m+1)/(1-q)
-    //   + b*q^(m+1)/(q-1) + b*q^(m+1)*q^n/(q-1)  [note: U = q^(m+1)*(q^n-1)/(q-1)]
-    // Wait, let's redo U:
-    // U = Σ_{k=1}^{n} q^(k+m) = q^(m+1) + q^(m+2) + ... + q^(n+m)
-    //   = q^(m+1) * (1 - q^n) / (1 - q)
-    //   = q^(m+1) / (1-q) - q^(n+m+1) / (1-q)
-
-    // So Sₙ = a*T + b*U
-    // Coefficient of q^(n+m+1):
-    //   from T: -a/(1-q)^2 - a*n/(1-q)  => coefficient of q^(n+m+1) is -a/(1-q)^2 - a*n/(1-q)
-    //   from U: -b/(1-q)
-    // Constant part (not involving q^n or q^(n+m+1)):
-    //   from T: a*q^(m+1)/(1-q)^2
-    //   from U: b*q^(m+1)/(1-q)
-
-    // So Sₙ = [-a/(1-q)^2 - a*n/(1-q) - b/(1-q)] * q^(n+m+1)
-    //         + a*q^(m+1)/(1-q)^2 + b*q^(m+1)/(1-q)
-    // = [(-a*n - a/(1-q) - b) / (1-q)] * q^(n+m+1) + q^(m+1)*(a/(1-q) + b)/(1-q)
-
-    // Let's express as Sₙ = (A*n + C) * q^(n+m+1) + D
-    // A = -a/(1-q)
-    // C = -a/(1-q)^2 - b/(1-q)
-    // D = a*q^(m+1)/(1-q)^2 + b*q^(m+1)/(1-q)
-
-    var A = aF.neg().div(oneMinusQ);  // -a/(1-q)
-    var C = aF.neg().div(oneMinusQ.mul(oneMinusQ)).sub(bF.div(oneMinusQ));
-    var D = aF.mul(qF.pow(mF.valueOf() + 1)).div(oneMinusQ.mul(oneMinusQ))
-             .add(bF.mul(qF.pow(mF.valueOf() + 1)).div(oneMinusQ));
-
-    // Format result
-    var mPlus1 = mF.add(one);
-    var expStr = 'q^(n+' + fStr(mPlus1) + ')';
-    if (mPlus1.valueOf() === 1) expStr = 'q^(n+1)';
-    if (mPlus1.valueOf() === 0) expStr = 'q^n';
-
-    var AStr = fStr(A);
-    var CStr = fStr(C);
-    var DStr = fStr(D);
-
-    var coeff = '';
-    if (A.valueOf() !== 0 && C.valueOf() !== 0) {
-      coeff = '(' + AStr + '·n + ' + CStr + ')';
-    } else if (A.valueOf() !== 0) {
-      coeff = AStr + '·n';
-    } else if (C.valueOf() !== 0) {
-      coeff = CStr;
+  <script>
+    function parseInput(value) {
+      try {
+        return new Fraction(value);
+      } catch (e) {
+        throw new Error('无效的分数格式，请使用如 3/4 或 0.75 的格式');
+      }
     }
 
-    var formula = 'Sₙ = ';
-    if (coeff) formula += coeff + ' · ' + expStr;
-    if (D.valueOf() !== 0) {
-      if (coeff) formula += (D.valueOf() > 0 ? ' + ' : ' ') + DStr;
-      else formula += DStr;
+    function calculate() {
+      try {
+        if (typeof Fraction === 'undefined') {
+          throw new Error('分数库加载失败，请刷新页面重试');
+        }
+
+        var a = parseInput(document.getElementById('a').value);
+        var b = parseInput(document.getElementById('b').value);
+        var q = parseInput(document.getElementById('q').value);
+        var m = parseInt(document.getElementById('m').value);
+
+        if (isNaN(m)) throw new Error('m必须是整数');
+        if (q.valueOf() === 1) throw new Error('q不能等于1');
+
+        var qPower = q.pow(m + 1);
+        var adjustedA = a.mul(qPower);
+        var adjustedB = b.mul(qPower);
+
+        var qMinus1 = q.sub(1);
+        var A = adjustedA.div(qMinus1);
+        var B = adjustedB.sub(A).div(qMinus1);
+
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('A-value').textContent = A.toFraction();
+        document.getElementById('B-value').textContent = B.toFraction();
+      } catch (error) {
+        alert('计算错误: ' + error.message);
+      }
     }
-    if (!coeff && D.valueOf() === 0) formula += '0';
-
-    // Steps
-    var steps = '';
-    steps += '设 Sₙ = Σ_{k=1}^{n} (' + fStr(aF) + '·k + ' + fStr(bF) + ') · q^(k+' + fStr(mF) + ')\n\n';
-    steps += '令 T = Σ_{k=1}^{n} k·q^(k+' + fStr(mF) + ')，U = Σ_{k=1}^{n} q^(k+' + fStr(mF) + ')\n\n';
-    steps += '对 T 用错位相减法：\n';
-    steps += '  T    = q^(' + fStr(mF.add(one)) + ') + 2q^(' + fStr(mF.add(new Fraction(2))) + ') + ... + n·q^(n+' + fStr(mF) + ')\n';
-    steps += '  q·T  = q^(' + fStr(mF.add(new Fraction(2))) + ') + 2q^(' + fStr(mF.add(new Fraction(3))) + ') + ... + n·q^(n+' + fStr(mPlus1) + ')\n';
-    steps += '  (1-q)T = q^(' + fStr(mF.add(one)) + ')·(1-q^n)/(1-q) - n·q^(n+' + fStr(mPlus1) + ')\n\n';
-    steps += '  T = q^(' + fStr(mF.add(one)) + ')/(1-q)² - n·q^(n+' + fStr(mPlus1) + ')/(1-q)\n\n';
-    steps += 'U = q^(' + fStr(mF.add(one)) + ')·(1-q^n)/(1-q)\n\n';
-    steps += 'Sₙ = ' + fStr(aF) + '·T + ' + fStr(bF) + '·U\n\n';
-    steps += '最终结果：\n' + formula;
-
-    document.getElementById('res-formula').textContent = formula;
-    document.getElementById('res-steps').textContent = steps;
-    document.getElementById('result').style.display = 'block';
-    showMsg('');
-  }
-
-  function clearAll() {
-    ['a','b','q','m'].forEach(function(id){ document.getElementById(id).value = ''; });
-    document.getElementById('result').style.display = 'none';
-    showMsg('');
-    updateHint();
-  }
-
-  function showMsg(m) { document.getElementById('msg').textContent = m; }
-</script>
+  </script>
 </body>
 </html>
