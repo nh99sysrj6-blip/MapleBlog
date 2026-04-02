@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片滤镜工具</title>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">🎨 图片滤镜工具</h2>
+
+    <div class="upload-area" id="uploadArea">
+      <div class="upload-icon">📁</div>
+      <div class="upload-text">点击选择图片或拖拽到此处</div>
+      <div class="upload-hint">支持 JPG、PNG、WebP 格式</div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none">
+    </div>
+
+    <div id="editorArea" style="display:none">
+      <div class="preview-wrap">
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <div class="sliders">
+        <div class="slider-row">
+          <label>亮度 <span id="brightnessVal">100</span>%</label>
+          <input type="range" id="brightness" min="0" max="200" value="100">
+        </div>
+        <div class="slider-row">
+          <label>对比度 <span id="contrastVal">100</span>%</label>
+          <input type="range" id="contrast" min="0" max="200" value="100">
+        </div>
+        <div class="slider-row">
+          <label>饱和度 <span id="saturateVal">100</span>%</label>
+          <input type="range" id="saturate" min="0" max="200" value="100">
+        </div>
+        <div class="slider-row">
+          <label>灰度 <span id="grayscaleVal">0</span>%</label>
+          <input type="range" id="grayscale" min="0" max="100" value="0">
+        </div>
+        <div class="slider-row">
+          <label>复古 <span id="sepiaVal">0</span>%</label>
+          <input type="range" id="sepia" min="0" max="100" value="0">
+        </div>
+        <div class="slider-row">
+          <label>模糊 <span id="blurVal">0</span>px</label>
+          <input type="range" id="blur" min="0" max="20" value="0">
+        </div>
+      </div>
+
+      <div class="format-row">
+        <label>输出格式</label>
+        <div class="format-btns">
+          <button class="fmt-btn active" data-fmt="jpeg">JPEG</button>
+          <button class="fmt-btn" data-fmt="png">PNG</button>
+          <button class="fmt-btn" data-fmt="webp">WebP</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="resetFilters()">重置滤镜</button>
+        <button class="btn-secondary" onclick="resetTool()">重新选择</button>
+        <button class="btn-primary" onclick="applyAndDownload()">生成并下载</button>
+      </div>
+    </div>
+
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 860px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; }
+  .upload-area { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+  .upload-area:hover, .upload-area.drag-over { border-color: #8b5cf6; background: #faf5ff; }
+  .upload-icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .upload-text { font-size: 1rem; font-weight: 600; color: #334155; margin-bottom: 6px; }
+  .upload-hint { font-size: 0.82rem; color: #94a3b8; }
+  .preview-wrap { margin: 20px 0; text-align: center; background: #f1f5f9; border-radius: 10px; padding: 12px; overflow: auto; }
+  #canvas { max-width: 100%; border-radius: 6px; display: block; margin: 0 auto; }
+  .sliders { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  .slider-row label { font-size: 0.85rem; font-weight: 600; color: #475569; min-width: 110px; }
+  .slider-row input[type="range"] { flex: 1; accent-color: #8b5cf6; }
+  .format-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .format-row label { font-size: 0.88rem; font-weight: 600; color: #475569; }
+  .format-btns { display: flex; gap: 8px; }
+  .fmt-btn { padding: 6px 16px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; }
+  .fmt-btn.active { background: #8b5cf6; color: #fff; border-color: #8b5cf6; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-primary { background: #8b5cf6; color: #fff; border: none; border-radius: 8px; padding: 10px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #7c3aed; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 20px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .msg { margin-top: 12px; font-size: 0.85rem; min-height: 20px; color: #8b5cf6; }
+  .msg.error { color: #ef4444; }
+  @media (max-width: 600px) { .slider-row label { min-width: 80px; } }
+</style>
+
+<script>
+  var origImage = null;
+  var selectedFmt = 'jpeg';
+  var uploadArea = document.getElementById('uploadArea');
+  var fileInput = document.getElementById('fileInput');
+  var canvas = document.getElementById('canvas');
+  var ctx = canvas.getContext('2d');
+
+  uploadArea.addEventListener('click', function() { fileInput.click(); });
+  fileInput.addEventListener('change', function() {
+    if (fileInput.files[0]) loadFile(fileInput.files[0]);
+  });
+  uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+  uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('drag-over'); });
+  uploadArea.addEventListener('drop', function(e) {
+    e.preventDefault(); uploadArea.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+
+  document.querySelectorAll('.fmt-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.fmt-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      selectedFmt = btn.dataset.fmt;
+    });
+  });
+
+  var sliders = ['brightness', 'contrast', 'saturate', 'grayscale', 'sepia', 'blur'];
+  sliders.forEach(function(id) {
+    document.getElementById(id).addEventListener('input', function() {
+      document.getElementById(id + 'Val').textContent = this.value;
+      applyFilters();
+    });
+  });
+
+  function loadFile(file) {
+    if (!file.type.startsWith('image/')) { showMsg('请选择图片文件', true); return; }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        origImage = img;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        applyFilters();
+        document.getElementById('editorArea').style.display = 'block';
+        uploadArea.style.display = 'none';
+        showMsg('');
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function applyFilters() {
+    if (!origImage) return;
+    var brightness = document.getElementById('brightness').value;
+    var contrast = document.getElementById('contrast').value;
+    var saturate = document.getElementById('saturate').value;
+    var grayscale = document.getElementById('grayscale').value;
+    var sepia = document.getElementById('sepia').value;
+    var blur = document.getElementById('blur').value;
+    ctx.filter = 'brightness(' + brightness + '%) contrast(' + contrast + '%) saturate(' + saturate + '%) grayscale(' + grayscale + '%) sepia(' + sepia + '%) blur(' + blur + 'px)';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(origImage, 0, 0);
+  }
+
+  function resetFilters() {
+    var defaults = { brightness: 100, contrast: 100, saturate: 100, grayscale: 0, sepia: 0, blur: 0 };
+    sliders.forEach(function(id) {
+      document.getElementById(id).value = defaults[id];
+      document.getElementById(id + 'Val').textContent = defaults[id];
+    });
+    applyFilters();
+    showMsg('已重置');
+  }
+
+  function applyAndDownload() {
+    if (!origImage) return;
+    var mimeType = selectedFmt === 'png' ? 'image/png' : (selectedFmt === 'webp' ? 'image/webp' : 'image/jpeg');
+    var ext = selectedFmt === 'jpeg' ? 'jpg' : selectedFmt;
+    canvas.toBlob(function(blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'filtered-image.' + ext;
+      a.click();
+      showMsg('下载成功');
+    }, mimeType, 0.92);
+  }
+
+  function resetTool() {
+    origImage = null;
+    fileInput.value = '';
+    document.getElementById('editorArea').style.display = 'none';
+    uploadArea.style.display = 'block';
+    resetFilters();
+    showMsg('');
+  }
+
+  function showMsg(m, isErr) {
+    var el = document.getElementById('msg');
+    el.textContent = m;
+    el.className = 'msg' + (isErr ? ' error' : '');
+  }
+</script>
+</body>
+</html>

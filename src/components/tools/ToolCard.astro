@@ -1,15 +1,14 @@
 ---
 import type { CollectionEntry } from "astro:content";
 import LiquidGlass from "@components/common/LiquidGlassLess.astro";
-import { slugify } from "@lib/textConverter";
 
 interface Props {
   entry: CollectionEntry<"tools">;
 }
 
 const { entry } = Astro.props;
-const { title, description, icon, tags } = entry.data;
-const slug = slugify(title);
+const { title, description, icon, tags, slug } = entry.data;
+
 ---
 
 <LiquidGlass

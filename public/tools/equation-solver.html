@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>方程数值解计算器</title>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">📐 方程数值解计算器</h2>
+    <p class="desc">输入方程 f(x)=0，使用二分法求数值解。支持 ln/log/sin/cos/tan/sqrt/exp/pow 等函数。</p>
+    <div class="form-grid">
+      <div class="form-item">
+        <label>f(x) = <span class="hint">（用 x 作变量，例如：x*x - 2）</span></label>
+        <input type="text" id="expr" placeholder="x*x - 2" value="x*x - 2">
+      </div>
+      <div class="form-row">
+        <div class="form-item">
+          <label>区间左端点 a</label>
+          <input type="number" id="a" value="0" step="any">
+        </div>
+        <div class="form-item">
+          <label>区间右端点 b</label>
+          <input type="number" id="b" value="2" step="any">
+        </div>
+        <div class="form-item">
+          <label>误差容限 ε</label>
+          <input type="number" id="eps" value="1e-8" step="any">
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="solve()">求解</button>
+      <button class="btn-secondary" onclick="clearAll()">清空</button>
+    </div>
+    <div id="result" class="result-box" style="display:none">
+      <div class="result-grid">
+        <div class="result-item">
+          <div class="result-label">根 x ≈</div>
+          <div class="result-value" id="res-root"></div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">f(x) ≈</div>
+          <div class="result-value" id="res-fx"></div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">迭代次数</div>
+          <div class="result-value" id="res-iter"></div>
+        </div>
+        <div class="result-item">
+          <div class="result-label">耗时</div>
+          <div class="result-value" id="res-time"></div>
+        </div>
+      </div>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 700px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+  .desc { font-size: 0.88rem; color: #64748b; margin-bottom: 20px; }
+  .form-grid { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
+  .form-row { display: flex; gap: 12px; }
+  .form-item { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  .hint { font-weight: 400; color: #94a3b8; font-size: 0.8rem; }
+  input[type="text"], input[type="number"] { padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; background: #f8fafc; width: 100%; }
+  input:focus { border-color: #10b981; background: #fff; }
+  .btn-row { display: flex; gap: 10px; margin-bottom: 18px; }
+  .btn-primary { background: #10b981; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #059669; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .result-box { background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 18px; margin-bottom: 10px; }
+  .result-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .result-label { font-size: 0.8rem; color: #64748b; margin-bottom: 4px; }
+  .result-value { font-size: 1.1rem; font-weight: 700; color: #065f46; font-family: 'Courier New', monospace; word-break: break-all; }
+  .msg { font-size: 0.85rem; min-height: 20px; color: #ef4444; margin-top: 6px; }
+  @media (max-width: 500px) { .form-row { flex-direction: column; } .result-grid { grid-template-columns: 1fr; } }
+</style>
+<script>
+  function buildFn(expr) {
+    var safe = expr
+      .replace(/\bln\b/g, 'Math.log')
+      .replace(/\blog\b/g, 'Math.log10')
+      .replace(/\bsin\b/g, 'Math.sin')
+      .replace(/\bcos\b/g, 'Math.cos')
+      .replace(/\btan\b/g, 'Math.tan')
+      .replace(/\bsqrt\b/g, 'Math.sqrt')
+      .replace(/\bexp\b/g, 'Math.exp')
+      .replace(/\bpow\b/g, 'Math.pow')
+      .replace(/\babs\b/g, 'Math.abs')
+      .replace(/\bPI\b/g, 'Math.PI')
+      .replace(/\be\b/g, 'Math.E');
+    return new Function('x', '"use strict"; return (' + safe + ');');
+  }
+
+  function solve() {
+    var expr = document.getElementById('expr').value.trim();
+    var a = parseFloat(document.getElementById('a').value);
+    var b = parseFloat(document.getElementById('b').value);
+    var eps = parseFloat(document.getElementById('eps').value);
+
+    if (!expr) { showMsg('请输入方程表达式'); return; }
+    if (isNaN(a) || isNaN(b)) { showMsg('请输入有效的区间'); return; }
+    if (isNaN(eps) || eps <= 0) { showMsg('误差容限必须为正数'); return; }
+    if (a >= b) { showMsg('需要 a < b'); return; }
+
+    var fn;
+    try { fn = buildFn(expr); } catch(e) { showMsg('表达式解析失败：' + e.message); return; }
+
+    var fa, fb;
+    try { fa = fn(a); fb = fn(b); } catch(e) { showMsg('计算 f(a) 或 f(b) 出错：' + e.message); return; }
+
+    if (fa * fb > 0) { showMsg('f(a) 与 f(b) 同号，区间内可能无根或有偶数个根'); return; }
+
+    var t0 = performance.now();
+    var iter = 0;
+    var mid, fm;
+    var MAX_ITER = 1000;
+
+    while ((b - a) / 2 > eps && iter < MAX_ITER) {
+      mid = (a + b) / 2;
+      try { fm = fn(mid); } catch(e) { showMsg('迭代计算出错：' + e.message); return; }
+      if (fm === 0) break;
+      if (fa * fm < 0) { b = mid; fb = fm; }
+      else { a = mid; fa = fm; }
+      iter++;
+    }
+    mid = (a + b) / 2;
+    var elapsed = (performance.now() - t0).toFixed(3);
+
+    var fmid;
+    try { fmid = fn(mid); } catch(e) { fmid = NaN; }
+
+    document.getElementById('res-root').textContent = mid.toPrecision(12);
+    document.getElementById('res-fx').textContent = fmid.toExponential(4);
+    document.getElementById('res-iter').textContent = iter;
+    document.getElementById('res-time').textContent = elapsed + ' ms';
+    document.getElementById('result').style.display = 'block';
+    showMsg('');
+  }
+
+  function clearAll() {
+    document.getElementById('expr').value = '';
+    document.getElementById('a').value = '';
+    document.getElementById('b').value = '';
+    document.getElementById('eps').value = '1e-8';
+    document.getElementById('result').style.display = 'none';
+    showMsg('');
+  }
+
+  function showMsg(m) { document.getElementById('msg').textContent = m; }
+</script>
+</body>
+</html>

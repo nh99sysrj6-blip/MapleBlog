@@ -77,9 +77,18 @@ renderer.blockquote = function(quote: string) {
 marked.setOptions({ renderer });
 
 // slugify
+// github-slugger 会丢弃中文字符，导致纯中文标题生成空 slug
+// 此处在 slug 结果为空时，fallback 为保留中文字符的简单处理
 export const slugify = (content: string) => {
   if (!content) return '';
-  return slug(content.toString());
+  const result = slug(content.toString());
+  if (result) return result;
+  // fallback：保留中文及字母数字，空格转连字符，去掉首尾连字符
+  return content
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\u4e00-\u9fa5a-z0-9-]/g, '')
+    .replace(/^-+|-+$/g, '');
 };
 
 // markdownify

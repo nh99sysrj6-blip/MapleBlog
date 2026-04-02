@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大小写转换工具</title>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">Aa 大小写转换工具</h2>
+    <div class="io-row">
+      <div class="io-col">
+        <label>输入</label>
+        <textarea id="input" placeholder="输入需要转换的文本..."></textarea>
+      </div>
+      <div class="io-col">
+        <label>输出</label>
+        <textarea id="output" placeholder="转换后的文本..." readonly></textarea>
+      </div>
+    </div>
+    <div class="btn-grid">
+      <button class="btn-conv" onclick="convert('upper')">全大写<br><small>HELLO WORLD</small></button>
+      <button class="btn-conv" onclick="convert('lower')">全小写<br><small>hello world</small></button>
+      <button class="btn-conv" onclick="convert('title')">首字母大写<br><small>Hello World</small></button>
+      <button class="btn-conv" onclick="convert('sentence')">句首大写<br><small>Hello world</small></button>
+      <button class="btn-conv" onclick="convert('camel')">驼峰命名<br><small>helloWorld</small></button>
+      <button class="btn-conv" onclick="convert('pascal')">帕斯卡命名<br><small>HelloWorld</small></button>
+      <button class="btn-conv" onclick="convert('snake')">下划线命名<br><small>hello_world</small></button>
+      <button class="btn-conv" onclick="convert('kebab')">连字符命名<br><small>hello-world</small></button>
+      <button class="btn-conv" onclick="convert('constant')">常量命名<br><small>HELLO_WORLD</small></button>
+      <button class="btn-conv" onclick="convert('toggle')">大小写互换<br><small>hELLO wORLD</small></button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="clearAll()">清空</button>
+      <button class="btn-secondary" onclick="copyOutput()">复制结果</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+  .io-row { display: flex; gap: 16px; margin-bottom: 16px; }
+  .io-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  textarea { width: 100%; height: 160px; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: 'Courier New', monospace; resize: vertical; outline: none; transition: border-color 0.2s; background: #f8fafc; }
+  textarea:focus { border-color: #10b981; background: #fff; }
+  textarea[readonly] { background: #f1f5f9; }
+  .btn-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+  .btn-conv { background: #f0fdf4; color: #065f46; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 10px 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.4; }
+  .btn-conv small { font-size: 0.72rem; font-weight: 400; color: #10b981; font-family: 'Courier New', monospace; }
+  .btn-conv:hover { background: #10b981; color: #fff; border-color: #10b981; }
+  .btn-conv:hover small { color: #d1fae5; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .msg { margin-top: 10px; font-size: 0.85rem; min-height: 20px; color: #10b981; }
+  @media (max-width: 600px) { .io-row { flex-direction: column; } .btn-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+<script>
+  function toWords(s) {
+    return s.replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/[-_]+/g, ' ')
+            .replace(/\s+/g, ' ').trim().split(' ');
+  }
+  function convert(type) {
+    const text = document.getElementById('input').value;
+    if (!text) { showMsg('请输入文本'); return; }
+    let result;
+    switch(type) {
+      case 'upper': result = text.toUpperCase(); break;
+      case 'lower': result = text.toLowerCase(); break;
+      case 'title': result = text.replace(/\b\w/g, c => c.toUpperCase()); break;
+      case 'sentence': result = text.toLowerCase().replace(/(^\s*\w|[.!?]\s+\w)/g, c => c.toUpperCase()); break;
+      case 'camel': {
+        const words = toWords(text.toLowerCase());
+        result = words[0] + words.slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+        break;
+      }
+      case 'pascal': {
+        result = toWords(text.toLowerCase()).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+        break;
+      }
+      case 'snake': result = toWords(text.toLowerCase()).join('_'); break;
+      case 'kebab': result = toWords(text.toLowerCase()).join('-'); break;
+      case 'constant': result = toWords(text).join('_').toUpperCase(); break;
+      case 'toggle': result = text.split('').map(c => c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()).join(''); break;
+    }
+    document.getElementById('output').value = result;
+    showMsg('转换完成');
+  }
+  function clearAll() {
+    document.getElementById('input').value = '';
+    document.getElementById('output').value = '';
+    showMsg('');
+  }
+  function copyOutput() {
+    const v = document.getElementById('output').value;
+    if (!v) { showMsg('没有可复制的内容'); return; }
+    navigator.clipboard.writeText(v).then(() => showMsg('已复制到剪贴板'));
+  }
+  function showMsg(m) { document.getElementById('msg').textContent = m; }
+</script>
+</body>
+</html>

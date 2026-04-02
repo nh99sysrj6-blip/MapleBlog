@@ -190,7 +190,8 @@ const terms = defineCollection({
 const tools = defineCollection({
   loader: glob({ pattern: "**\/[^_]*.{md,mdx}", base: "./src/content/tools" }),
   schema: baseContent.extend({
-    file: z.string().optional(), // 对应 public/tools/ 下的 html 文件名，-index.md 不需要
+    slug: z.string().optional(),  // 纯英文唯一标识，用于生成 URL，如 base32-encode
+    file: z.string().optional(),  // 对应 public/tools/ 下的 html 文件名，-index.md 不需要
     tags: z.array(z.string()).optional(),
     icon: z.string().optional(),
   }),

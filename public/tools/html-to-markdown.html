@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML 转 Markdown</title>
+  <style>html, body { background: transparent !important; min-height: unset !important; }</style>
+  <script>(function() {
+    function reportHeight() { var h = document.documentElement.scrollHeight || document.body.scrollHeight; window.parent.postMessage({ type: 'tool-height', height: h }, '*'); }
+    window.addEventListener('load', reportHeight); window.addEventListener('resize', reportHeight);
+    var mo = new MutationObserver(reportHeight);
+    document.addEventListener('DOMContentLoaded', function() { mo.observe(document.body, { childList: true, subtree: true, attributes: true }); });
+  })();</script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">🔄 HTML 转 Markdown</h2>
+    <div class="io-row">
+      <div class="io-col">
+        <label>HTML 输入</label>
+        <textarea id="input" placeholder="粘贴 HTML 代码..."></textarea>
+      </div>
+      <div class="io-col">
+        <label>Markdown 输出</label>
+        <textarea id="output" readonly placeholder="Markdown 将显示在这里..."></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="convert()">转换</button>
+      <button class="btn-secondary" onclick="loadSample()">示例</button>
+      <button class="btn-secondary" onclick="copyOutput()">复制结果</button>
+      <button class="btn-secondary" onclick="clearAll()">清空</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 1000px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; }
+  .io-row { display: flex; gap: 16px; margin-bottom: 16px; }
+  .io-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  textarea { width: 100%; height: 280px; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: 'Courier New', monospace; resize: vertical; outline: none; background: #f8fafc; transition: border-color 0.2s; }
+  textarea:focus { border-color: #dc2626; background: #fff; }
+  textarea[readonly] { background: #f1f5f9; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-primary { background: #dc2626; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #b91c1c; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .msg { margin-top: 10px; font-size: 0.85rem; min-height: 20px; color: #dc2626; }
+  @media (max-width: 600px) { .io-row { flex-direction: column; } }
+</style>
+<script>
+  function htmlToMarkdown(input) {
+    var doc = new DOMParser().parseFromString(input, 'text/html');
+    function convert(node) {
+      if (node.nodeType === 3) return node.textContent;
+      if (node.nodeType !== 1) return '';
+      var tag = node.tagName.toLowerCase();
+      var content = Array.from(node.childNodes).map(convert).join('');
+      switch (tag) {
+        case 'h1': return '# ' + content + '\n\n';
+        case 'h2': return '## ' + content + '\n\n';
+        case 'h3': return '### ' + content + '\n\n';
+        case 'h4': return '#### ' + content + '\n\n';
+        case 'h5': return '##### ' + content + '\n\n';
+        case 'h6': return '###### ' + content + '\n\n';
+        case 'p': return content + '\n\n';
+        case 'strong': case 'b': return '**' + content + '**';
+        case 'em': case 'i': return '*' + content + '*';
+        case 'del': case 's': return '~~' + content + '~~';
+        case 'code': return '`' + content + '`';
+        case 'pre': return '```\n' + content + '\n```\n\n';
+        case 'a': return '[' + content + '](' + (node.getAttribute('href') || '') + ')';
+        case 'img': return '![' + (node.getAttribute('alt') || '') + '](' + (node.getAttribute('src') || '') + ')';
+        case 'ul': return Array.from(node.children).map(function(li) { return '- ' + convert(li).trim(); }).join('\n') + '\n\n';
+        case 'ol': return Array.from(node.children).map(function(li, i) { return (i+1) + '. ' + convert(li).trim(); }).join('\n') + '\n\n';
+        case 'li': return content;
+        case 'blockquote': return content.split('\n').map(function(l) { return '> ' + l; }).join('\n') + '\n\n';
+        case 'hr': return '---\n\n';
+        case 'br': return '\n';
+        default: return content;
+      }
+    }
+    return convert(doc.body).trim();
+  }
+
+  function convert() {
+    var input = document.getElementById('input').value;
+    if (!input.trim()) { showMsg('请输入 HTML 内容'); return; }
+    document.getElementById('output').value = htmlToMarkdown(input);
+    showMsg('转换完成');
+  }
+  function loadSample() {
+    document.getElementById('input').value = '<h1>标题</h1><p>这是一段 <strong>加粗</strong> 和 <em>斜体</em> 文字。</p><ul><li>列表项一</li><li>列表项二</li></ul><a href="https://example.com">链接</a>';
+    convert();
+  }
+  function copyOutput() {
+    var v = document.getElementById('output').value;
+    if (!v) { showMsg('没有可复制的内容'); return; }
+    navigator.clipboard.writeText(v).then(function() { showMsg('已复制到剪贴板'); });
+  }
+  function clearAll() {
+    document.getElementById('input').value = '';
+    document.getElementById('output').value = '';
+    showMsg('');
+  }
+  function showMsg(m) { document.getElementById('msg').textContent = m; }
+</script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown 转公众号排版</title>
+  <style>html, body { background: transparent !important; min-height: unset !important; }</style>
+  <script>(function() {
+    function reportHeight() { var h = document.documentElement.scrollHeight || document.body.scrollHeight; window.parent.postMessage({ type: 'tool-height', height: h }, '*'); }
+    window.addEventListener('load', reportHeight); window.addEventListener('resize', reportHeight);
+    var mo = new MutationObserver(reportHeight);
+    document.addEventListener('DOMContentLoaded', function() { mo.observe(document.body, { childList: true, subtree: true, attributes: true }); });
+  })();</script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">📱 Markdown 转公众号排版</h2>
+    <div class="toolbar">
+      <div class="btn-row">
+        <button class="btn-primary" onclick="loadExample()">加载示例</button>
+        <button class="btn-secondary" onclick="clearAll()">清空</button>
+        <button class="btn-primary" onclick="copyWechat()">复制公众号内容</button>
+        <button class="btn-secondary" onclick="copyHtml()">复制 HTML</button>
+      </div>
+    </div>
+    <div class="io-row">
+      <div class="io-col">
+        <label>Markdown 输入</label>
+        <textarea id="mdInput" placeholder="# 标题&#10;&#10;## 小标题&#10;&#10;正文内容..." oninput="convert()"></textarea>
+      </div>
+      <div class="io-col">
+        <label>公众号预览</label>
+        <div id="preview" class="preview-box"></div>
+      </div>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+  .toolbar { margin-bottom: 16px; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-primary { background: #38bdf8; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #0ea5e9; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .io-row { display: flex; gap: 16px; }
+  .io-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  textarea { width: 100%; height: 480px; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: 'Courier New', monospace; resize: vertical; outline: none; background: #f8fafc; transition: border-color 0.2s; }
+  textarea:focus { border-color: #38bdf8; background: #fff; }
+  .preview-box { flex: 1; min-height: 480px; padding: 20px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #fff; overflow-y: auto; }
+  .msg { margin-top: 10px; font-size: 0.85rem; min-height: 20px; color: #38bdf8; }
+  /* WeChat article styles */
+  .wx-article { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #1f2937; line-height: 1.75; }
+  .wx-article h1 { font-size: 1.8rem; margin: 0 0 1rem; color: #0b2a4a; border-bottom: 2px solid #bae6fd; padding-bottom: 0.5rem; }
+  .wx-article h2 { font-size: 1.35rem; margin: 1.5rem 0 0.7rem; color: #0f4c81; padding-left: 12px; border-left: 4px solid #38bdf8; }
+  .wx-article h3 { font-size: 1.1rem; margin: 1.2rem 0 0.5rem; color: #115e9b; }
+  .wx-article p { margin: 0 0 1rem; color: #334155; }
+  .wx-article strong { color: #0f4c81; }
+  .wx-article a { color: #0ea5e9; text-decoration: none; border-bottom: 1px dashed rgba(14,165,233,0.5); }
+  .wx-article ul, .wx-article ol { margin: 0 0 1rem 1.2rem; }
+  .wx-article li { margin: 0.4rem 0; }
+  .wx-article blockquote { margin: 1.2rem 0; padding: 0.8rem 1rem; background: #f0f9ff; border-left: 4px solid #38bdf8; color: #475569; }
+  .wx-article code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: "Courier New", monospace; font-size: 0.9em; color: #0f172a; }
+  .wx-article pre { background: #0b1a2b; color: #e2f2ff; padding: 16px; border-radius: 10px; overflow-x: auto; margin: 1rem 0; }
+  .wx-article pre code { background: transparent; padding: 0; color: inherit; }
+  .wx-article img { max-width: 100%; border-radius: 10px; margin: 1rem 0; }
+  .wx-article table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  .wx-article th, .wx-article td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+  .wx-article th { background: #f1f5f9; }
+  .wx-article hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.5rem 0; }
+  @media (max-width: 700px) { .io-row { flex-direction: column; } .preview-box { min-height: 300px; } }
+</style>
+<script>
+  function escapeHtml(t) {
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function parseTables(md) {
+    var lines = md.split('\n'), out = [], i = 0;
+    while (i < lines.length) {
+      var line = lines[i], next = lines[i+1] || '';
+      if (line.includes('|') && /^\s*\|?[\s:-]+\|[\s|:-]+\|?\s*$/.test(next)) {
+        var headers = splitRow(line), rows = []; i += 2;
+        while (i < lines.length && lines[i].includes('|') && lines[i].trim()) { rows.push(splitRow(lines[i])); i++; }
+        var head = headers.map(function(c){return '<th>'+c+'</th>';}).join('');
+        var body = rows.map(function(r){return '<tr>'+headers.map(function(_,j){return '<td>'+(r[j]||'')+'</td>';}).join('')+'</tr>';}).join('');
+        out.push('<table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table>');
+        continue;
+      }
+      out.push(line); i++;
+    }
+    return out.join('\n');
+  }
+
+  function splitRow(line) {
+    var t = line.trim();
+    if (t.startsWith('|')) t = t.slice(1);
+    if (t.endsWith('|')) t = t.slice(0,-1);
+    return t.split('|').map(function(c){return c.trim();});
+  }
+
+  function parseMarkdown(md) {
+    var html = parseTables(md);
+    html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, function(m,lang,code){ return '<pre><code>'+ escapeHtml(code.trim())+'</code></pre>'; });
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/^#### (.+)$/gm,'<h4>$1</h4>');
+    html = html.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g,'<em>$1</em>');
+    html = html.replace(/~~(.+?)~~/g,'<del>$1</del>');
+    html = html.replace(/\[([^\]]+)\]\(([^\)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
+    html = html.replace(/!\[([^\]]*)\]\(([^\)]+)\)/g,'<img src="$2" alt="$1">');
+    html = html.replace(/^[\*\-] (.+)$/gm,'<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, function(m){ return '<ul>'+m+'</ul>'; });
+    html = html.replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>');
+    html = html.replace(/^-{3,}$/gm,'<hr>');
+    html = html.replace(/^(?!<[huobpdtl])(.+)$/gm,'<p>$1</p>');
+    html = html.replace(/<p><\/p>/g,'');
+    return html;
+  }
+
+  function convert() {
+    var md = document.getElementById('mdInput').value;
+    document.getElementById('preview').innerHTML = '<div class="wx-article">' + parseMarkdown(md) + '</div>';
+  }
+
+  function applyInlineStyles(html) {
+    return html
+      .replace(/<h1>/g,'<h1 style="font-size:1.8rem;margin:0 0 1rem;color:#0b2a4a;border-bottom:2px solid #bae6fd;padding-bottom:0.5rem;">')
+      .replace(/<h2>/g,'<h2 style="font-size:1.35rem;margin:1.5rem 0 0.7rem;color:#0f4c81;padding-left:12px;border-left:4px solid #38bdf8;">')
+      .replace(/<h3>/g,'<h3 style="font-size:1.1rem;margin:1.2rem 0 0.5rem;color:#115e9b;">')
+      .replace(/<p>/g,'<p style="margin:0 0 1rem;color:#334155;">')
+      .replace(/<strong>/g,'<strong style="color:#0f4c81;">')
+      .replace(/<a /g,'<a style="color:#0ea5e9;text-decoration:none;border-bottom:1px dashed rgba(14,165,233,0.5);" ')
+      .replace(/<ul>/g,'<ul style="margin:0 0 1rem 1.2rem;">')
+      .replace(/<ol>/g,'<ol style="margin:0 0 1rem 1.2rem;">')
+      .replace(/<li>/g,'<li style="margin:0.4rem 0;">')
+      .replace(/<blockquote>/g,'<blockquote style="margin:1.2rem 0;padding:0.8rem 1rem;background:#f0f9ff;border-left:4px solid #38bdf8;color:#475569;">')
+      .replace(/<code>/g,'<code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:Courier New,monospace;font-size:0.9em;color:#0f172a;">')
+      .replace(/<pre>/g,'<pre style="background:#0b1a2b;color:#e2f2ff;padding:16px;border-radius:10px;overflow-x:auto;margin:1rem 0;">')
+      .replace(/<table>/g,'<table style="border-collapse:collapse;width:100%;margin:1rem 0;">')
+      .replace(/<th>/g,'<th style="border:1px solid #e2e8f0;padding:8px 12px;text-align:left;background:#f1f5f9;">')
+      .replace(/<td>/g,'<td style="border:1px solid #e2e8f0;padding:8px 12px;text-align:left;">')
+      .replace(/<hr>/g,'<hr style="border:none;border-top:1px solid #e2e8f0;margin:1.5rem 0;">');
+  }
+
+  function copyWechat() {
+    var md = document.getElementById('mdInput').value;
+    var content = applyInlineStyles(parseMarkdown(md));
+    var html = '<section style="font-family:PingFang SC,Microsoft YaHei,sans-serif;color:#1f2937;line-height:1.75;padding:0 16px;">' + content + '</section>';
+    // Try to copy as rich text
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;';
+    document.body.appendChild(wrapper);
+    var range = document.createRange();
+    range.selectNodeContents(wrapper);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    var ok = document.execCommand('copy');
+    sel.removeAllRanges();
+    document.body.removeChild(wrapper);
+    if (ok) { showMsg('公众号内容已复制（富文本格式）'); return; }
+    navigator.clipboard.writeText(html).then(function(){ showMsg('HTML 已复制到剪贴板'); });
+  }
+
+  function copyHtml() {
+    var md = document.getElementById('mdInput').value;
+    var html = parseMarkdown(md);
+    navigator.clipboard.writeText(html).then(function(){ showMsg('HTML 已复制到剪贴板'); });
+  }
+
+  function clearAll() {
+    document.getElementById('mdInput').value = '';
+    document.getElementById('preview').innerHTML = '';
+    showMsg('');
+  }
+
+  function loadExample() {
+    document.getElementById('mdInput').value = '# 赛博科技蓝色系排版示例\n\n## 开场白\n\n一段简短引言，说明主题与价值。\n\n### 亮点一：阅读层级清晰\n\n- 蓝色点缀标题\n- 段落节奏舒适\n- **重点内容**自动强调\n\n> 引用内容会自动转换成醒目的蓝色块。\n\n### 亮点二：代码块更易读\n\n```js\nconst theme = "cyber-blue";\nconsole.log(theme);\n```\n\n**粗体** 与 *斜体* 会被轻微强调。\n\n| 模块 | 说明 | 状态 |\n| --- | --- | --- |\n| 主题 | 赛博科技蓝 | ✅ |\n| 表格 | 自动排版 | ✅ |';
+    convert();
+    showMsg('示例已加载');
+  }
+
+  function showMsg(m) { document.getElementById('msg').textContent = m; }
+
+  document.addEventListener('DOMContentLoaded', convert);
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>导数计算器</title>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.js"></script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">∫ 导数计算器</h2>
+    <p class="desc">输入关于 x 的函数表达式，自动计算其导数（符号微分）。</p>
+    <div class="form-item">
+      <label>f(x) = <span class="hint">（例如：x^3 + 2*x^2 - sin(x)）</span></label>
+      <input type="text" id="expr" placeholder="x^3 + 2*x^2 - sin(x)" value="x^3 + 2*x^2 - sin(x)">
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="calcDerivative()">计算导数</button>
+      <button class="btn-secondary" onclick="clearAll()">清空</button>
+    </div>
+    <div id="result" class="result-box" style="display:none">
+      <div class="result-row">
+        <div class="result-label">f(x) =</div>
+        <div class="result-value" id="res-fx"></div>
+      </div>
+      <div class="result-row">
+        <div class="result-label">f′(x) =</div>
+        <div class="result-value" id="res-dfx"></div>
+      </div>
+      <div class="result-row">
+        <div class="result-label">化简后 =</div>
+        <div class="result-value" id="res-simplified"></div>
+      </div>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 700px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+  .desc { font-size: 0.88rem; color: #64748b; margin-bottom: 20px; }
+  .form-item { display: flex; flex-direction: column; gap: 5px; margin-bottom: 18px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  .hint { font-weight: 400; color: #94a3b8; font-size: 0.8rem; }
+  input[type="text"] { padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; font-family: 'Courier New', monospace; outline: none; transition: border-color 0.2s; background: #f8fafc; width: 100%; }
+  input:focus { border-color: #10b981; background: #fff; }
+  .btn-row { display: flex; gap: 10px; margin-bottom: 18px; }
+  .btn-primary { background: #10b981; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #059669; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .result-box { background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 18px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 12px; }
+  .result-row { display: flex; align-items: baseline; gap: 10px; }
+  .result-label { font-size: 0.85rem; color: #64748b; min-width: 90px; font-weight: 600; }
+  .result-value { font-size: 1rem; font-weight: 700; color: #065f46; font-family: 'Courier New', monospace; word-break: break-all; }
+  .msg { font-size: 0.85rem; min-height: 20px; color: #ef4444; margin-top: 6px; }
+</style>
+<script>
+  function calcDerivative() {
+    var expr = document.getElementById('expr').value.trim();
+    if (!expr) { showMsg('请输入函数表达式'); return; }
+    try {
+      var derivative = math.derivative(expr, 'x');
+      var simplified = math.simplify(derivative);
+      document.getElementById('res-fx').textContent = expr;
+      document.getElementById('res-dfx').textContent = derivative.toString();
+      document.getElementById('res-simplified').textContent = simplified.toString();
+      document.getElementById('result').style.display = 'block';
+      showMsg('');
+    } catch(e) {
+      showMsg('计算失败：' + e.message);
+      document.getElementById('result').style.display = 'none';
+    }
+  }
+
+  function clearAll() {
+    document.getElementById('expr').value = '';
+    document.getElementById('result').style.display = 'none';
+    showMsg('');
+  }
+
+  function showMsg(m) { document.getElementById('msg').textContent = m; }
+</script>
+</body>
+</html>

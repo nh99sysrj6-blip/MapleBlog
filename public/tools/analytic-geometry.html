@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>解析几何计算工具</title>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.3.7/fraction.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">📐 解析几何计算工具</h2>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab(0)">点关于直线对称</button>
+      <button class="tab" onclick="switchTab(1)">直线关于点对称</button>
+      <button class="tab" onclick="switchTab(2)">直线关于直线对称</button>
+      <button class="tab" onclick="switchTab(3)">三点确定圆</button>
+    </div>
+
+    <!-- 模块0：点关于直线对称 -->
+    <div id="panel-0" class="panel">
+      <p class="panel-desc">求点 P(x₀, y₀) 关于直线 ax+by+c=0 的对称点 P'</p>
+      <div class="form-row">
+        <div class="form-item"><label>x₀</label><input type="text" id="p0-x" placeholder="例如：1"></div>
+        <div class="form-item"><label>y₀</label><input type="text" id="p0-y" placeholder="例如：2"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-item"><label>a（x 系数）</label><input type="text" id="p0-a" placeholder="例如：1"></div>
+        <div class="form-item"><label>b（y 系数）</label><input type="text" id="p0-b" placeholder="例如：-1"></div>
+        <div class="form-item"><label>c（常数项）</label><input type="text" id="p0-c" placeholder="例如：0"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="calcPointLine()">计算</button>
+        <button class="btn-secondary" onclick="clearPanel(0)">清空</button>
+      </div>
+      <div id="result-0" class="result-box" style="display:none"></div>
+    </div>
+
+    <!-- 模块1：直线关于点对称 -->
+    <div id="panel-1" class="panel" style="display:none">
+      <p class="panel-desc">求直线 ax+by+c=0 关于点 P(x₀, y₀) 的对称直线</p>
+      <div class="form-row">
+        <div class="form-item"><label>a（x 系数）</label><input type="text" id="p1-a" placeholder="例如：2"></div>
+        <div class="form-item"><label>b（y 系数）</label><input type="text" id="p1-b" placeholder="例如：-1"></div>
+        <div class="form-item"><label>c（常数项）</label><input type="text" id="p1-c" placeholder="例如：3"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-item"><label>x₀</label><input type="text" id="p1-x" placeholder="例如：1"></div>
+        <div class="form-item"><label>y₀</label><input type="text" id="p1-y" placeholder="例如：2"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="calcLinePoint()">计算</button>
+        <button class="btn-secondary" onclick="clearPanel(1)">清空</button>
+      </div>
+      <div id="result-1" class="result-box" style="display:none"></div>
+    </div>
+
+    <!-- 模块2：直线关于直线对称 -->
+    <div id="panel-2" class="panel" style="display:none">
+      <p class="panel-desc">求直线 l₁: a₁x+b₁y+c₁=0 关于直线 l₂: a₂x+b₂y+c₂=0 的对称直线</p>
+      <div class="form-row">
+        <div class="form-item"><label>a₁</label><input type="text" id="p2-a1" placeholder="例如：1"></div>
+        <div class="form-item"><label>b₁</label><input type="text" id="p2-b1" placeholder="例如：-1"></div>
+        <div class="form-item"><label>c₁</label><input type="text" id="p2-c1" placeholder="例如：0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-item"><label>a₂</label><input type="text" id="p2-a2" placeholder="例如：1"></div>
+        <div class="form-item"><label>b₂</label><input type="text" id="p2-b2" placeholder="例如：1"></div>
+        <div class="form-item"><label>c₂</label><input type="text" id="p2-c2" placeholder="例如：-2"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="calcLineLine()">计算</button>
+        <button class="btn-secondary" onclick="clearPanel(2)">清空</button>
+      </div>
+      <div id="result-2" class="result-box" style="display:none"></div>
+    </div>
+
+    <!-- 模块3：三点确定圆 -->
+    <div id="panel-3" class="panel" style="display:none">
+      <p class="panel-desc">输入三个不共线的点，求过这三点的圆的方程</p>
+      <div class="form-row">
+        <div class="form-item"><label>x₁</label><input type="text" id="p3-x1" placeholder="例如：1"></div>
+        <div class="form-item"><label>y₁</label><input type="text" id="p3-y1" placeholder="例如：0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-item"><label>x₂</label><input type="text" id="p3-x2" placeholder="例如：0"></div>
+        <div class="form-item"><label>y₂</label><input type="text" id="p3-y2" placeholder="例如：1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-item"><label>x₃</label><input type="text" id="p3-x3" placeholder="例如：-1"></div>
+        <div class="form-item"><label>y₃</label><input type="text" id="p3-y3" placeholder="例如：0"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="calcCircle()">计算</button>
+        <button class="btn-secondary" onclick="clearPanel(3)">清空</button>
+      </div>
+      <div id="result-3" class="result-box" style="display:none"></div>
+    </div>
+
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 750px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; border-bottom: 2px solid #e2e8f0; padding-bottom: 0; }
+  .tab { background: none; border: none; padding: 7px 12px; font-size: 0.85rem; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; white-space: nowrap; }
+  .tab.active { color: #10b981; border-bottom-color: #10b981; }
+  .tab:hover { color: #10b981; }
+  .panel-desc { font-size: 0.88rem; color: #64748b; margin-bottom: 14px; }
+  .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .form-item { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 80px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  input[type="text"] { padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; background: #f8fafc; width: 100%; }
+  input:focus { border-color: #10b981; background: #fff; }
+  .btn-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .btn-primary { background: #10b981; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #059669; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .result-box { background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 16px; margin-bottom: 10px; font-family: 'Courier New', monospace; font-size: 0.9rem; color: #065f46; line-height: 1.9; white-space: pre-wrap; word-break: break-all; }
+  .msg { font-size: 0.85rem; min-height: 20px; color: #ef4444; margin-top: 6px; }
+</style>
+<script>
+  var currentTab = 0;
+  function switchTab(i) {
+    for (var j = 0; j < 4; j++) {
+      document.getElementById('panel-' + j).style.display = j === i ? '' : 'none';
+      document.querySelectorAll('.tab')[j].classList.toggle('active', j === i);
+    }
+    currentTab = i;
+    showMsg('');
+  }
+
+  function pf(s) {
+    s = (s || '').trim();
+    if (!s) return null;
+    try { return new Fraction(s); } catch(e) { return null; }
+  }
+
+  function fs(f) {
+    if (!f) return '?';
+    if (f.d === 1) return String(f.s * f.n);
+    return f.toFraction();
+  }
+
+  function showResult(idx, html) {
+    var el = document.getElementById('result-' + idx);
+    el.textContent = html;
+    el.style.display = 'block';
+  }
+
+  function showMsg(m) { document.getElementById('msg').textContent = m; }
+
+  // 模块0：点关于直线对称
+  // P' = P - 2*(a*x0+b*y0+c)/(a²+b²) * (a, b)
+  function calcPointLine() {
+    var x0 = pf(document.getElementById('p0-x').value);
+    var y0 = pf(document.getElementById('p0-y').value);
+    var a = pf(document.getElementById('p0-a').value);
+    var b = pf(document.getElementById('p0-b').value);
+    var c = pf(document.getElementById('p0-c').value);
+    if (!x0||!y0||!a||!b||!c) { showMsg('请填写所有参数'); return; }
+    var a2b2 = a.mul(a).add(b.mul(b));
+    if (a2b2.valueOf() === 0) { showMsg('a 和 b 不能同时为 0'); return; }
+    var t = a.mul(x0).add(b.mul(y0)).add(c).mul(new Fraction(2)).div(a2b2);
+    var px = x0.sub(a.mul(t));
+    var py = y0.sub(b.mul(t));
+    var out = '点 P(' + fs(x0) + ', ' + fs(y0) + ') 关于直线 ' + fs(a) + 'x + ' + fs(b) + 'y + ' + fs(c) + ' = 0 的对称点：\n\n';
+    out += "P' = (" + fs(px) + ', ' + fs(py) + ')';
+    if (px.d !== 1 || py.d !== 1) out += '\n   ≈ (' + px.valueOf().toFixed(6) + ', ' + py.valueOf().toFixed(6) + ')';
+    showResult(0, out);
+    showMsg('');
+  }
+
+  // 模块1：直线关于点对称
+  // 对称直线：将直线上任意一点关于该点做对称，再用原直线方向向量
+  // 方法：直线 ax+by+c=0 关于点 P(x0,y0) 的对称直线
+  // 取直线上一点 Q，Q 关于 P 的对称点 Q'，对称直线过 Q' 且平行于原直线
+  // 即：a(x - 2x0) + b(y - 2y0) + c = 0 => ax + by + (c - 2ax0 - 2by0) = 0
+  function calcLinePoint() {
+    var a = pf(document.getElementById('p1-a').value);
+    var b = pf(document.getElementById('p1-b').value);
+    var c = pf(document.getElementById('p1-c').value);
+    var x0 = pf(document.getElementById('p1-x').value);
+    var y0 = pf(document.getElementById('p1-y').value);
+    if (!a||!b||!c||!x0||!y0) { showMsg('请填写所有参数'); return; }
+    var two = new Fraction(2);
+    var newC = c.sub(two.mul(a).mul(x0)).sub(two.mul(b).mul(y0));
+    var out = '直线 ' + fs(a) + 'x + ' + fs(b) + 'y + ' + fs(c) + ' = 0\n';
+    out += '关于点 P(' + fs(x0) + ', ' + fs(y0) + ') 的对称直线：\n\n';
+    out += fs(a) + 'x + ' + fs(b) + 'y + ' + fs(newC) + ' = 0';
+    showResult(1, out);
+    showMsg('');
+  }
+
+  // 模块2：直线关于直线对称
+  // 方法：
+  // 1. 若两直线平行，对称直线平行且等距
+  // 2. 若两直线相交，取 l1 上两点，分别关于 l2 做对称，连线即为对称直线
+  function reflectPointAboutLine(px, py, a, b, c) {
+    var a2b2 = a.mul(a).add(b.mul(b));
+    var t = a.mul(px).add(b.mul(py)).add(c).mul(new Fraction(2)).div(a2b2);
+    return [px.sub(a.mul(t)), py.sub(b.mul(t))];
+  }
+
+  function calcLineLine() {
+    var a1 = pf(document.getElementById('p2-a1').value);
+    var b1 = pf(document.getElementById('p2-b1').value);
+    var c1 = pf(document.getElementById('p2-c1').value);
+    var a2 = pf(document.getElementById('p2-a2').value);
+    var b2 = pf(document.getElementById('p2-b2').value);
+    var c2 = pf(document.getElementById('p2-c2').value);
+    if (!a1||!b1||!c1||!a2||!b2||!c2) { showMsg('请填写所有参数'); return; }
+
+    var a2b2 = a2.mul(a2).add(b2.mul(b2));
+    if (a2b2.valueOf() === 0) { showMsg('对称轴 a₂, b₂ 不能同时为 0'); return; }
+
+    // 取 l1 上两点
+    var pts = [];
+    // 若 b1 ≠ 0，取 x=0 和 x=1
+    if (b1.valueOf() !== 0) {
+      var y1a = c1.neg().sub(a1.mul(new Fraction(0))).div(b1);
+      var y1b = c1.neg().sub(a1.mul(new Fraction(1))).div(b1);
+      pts.push([new Fraction(0), y1a]);
+      pts.push([new Fraction(1), y1b]);
+    } else if (a1.valueOf() !== 0) {
+      // 竖线 x = -c1/a1，取 y=0 和 y=1
+      var x1a = c1.neg().div(a1);
+      pts.push([x1a, new Fraction(0)]);
+      pts.push([x1a, new Fraction(1)]);
+    } else {
+      showMsg('l₁ 的 a₁, b₁ 不能同时为 0'); return;
+    }
+
+    var rpts = pts.map(function(p) { return reflectPointAboutLine(p[0], p[1], a2, b2, c2); });
+    var dx = rpts[1][0].sub(rpts[0][0]);
+    var dy = rpts[1][1].sub(rpts[0][1]);
+
+    var out = '直线 l₁: ' + fs(a1) + 'x + ' + fs(b1) + 'y + ' + fs(c1) + ' = 0\n';
+    out += '关于直线 l₂: ' + fs(a2) + 'x + ' + fs(b2) + 'y + ' + fs(c2) + ' = 0 的对称直线：\n\n';
+
+    // 直线方程：dy*(x - x0) - dx*(y - y0) = 0
+    // dy*x - dx*y + (dx*y0 - dy*x0) = 0
+    var A = dy;
+    var B = dx.neg();
+    var C = dx.mul(rpts[0][1]).sub(dy.mul(rpts[0][0]));
+
+    out += fs(A) + 'x + ' + fs(B) + 'y + ' + fs(C) + ' = 0';
+    if (A.valueOf() !== 0 || B.valueOf() !== 0) {
+      out += '\n\n验证点1: (' + fs(rpts[0][0]) + ', ' + fs(rpts[0][1]) + ')';
+      out += '\n验证点2: (' + fs(rpts[1][0]) + ', ' + fs(rpts[1][1]) + ')';
+    }
+    showResult(2, out);
+    showMsg('');
+  }
+
+  // 模块3：三点确定圆
+  // 解方程组：(x-h)²+(y-k)²=r²
+  // 展开：x²+y²-2hx-2ky+(h²+k²-r²)=0
+  // 令 D=-2h, E=-2k, F=h²+k²-r²
+  // 三点代入得线性方程组
+  function calcCircle() {
+    var x1 = pf(document.getElementById('p3-x1').value);
+    var y1 = pf(document.getElementById('p3-y1').value);
+    var x2 = pf(document.getElementById('p3-x2').value);
+    var y2 = pf(document.getElementById('p3-y2').value);
+    var x3 = pf(document.getElementById('p3-x3').value);
+    var y3 = pf(document.getElementById('p3-y3').value);
+    if (!x1||!y1||!x2||!y2||!x3||!y3) { showMsg('请填写所有坐标'); return; }
+
+    // x²+y²+Dx+Ey+F=0
+    // 三点代入：
+    // x1²+y1²+D*x1+E*y1+F=0
+    // x2²+y2²+D*x2+E*y2+F=0
+    // x3²+y3²+D*x3+E*y3+F=0
+    // 用消元法
+    var r1 = x1.mul(x1).add(y1.mul(y1));
+    var r2 = x2.mul(x2).add(y2.mul(y2));
+    var r3 = x3.mul(x3).add(y3.mul(y3));
+
+    // 方程1-方程2: (x1²-x2²)+(y1²-y2²)+D(x1-x2)+E(y1-y2)=0
+    // 方程1-方程3: (x1²-x3²)+(y1²-y3²)+D(x1-x3)+E(y1-y3)=0
+    var dx12 = x1.sub(x2), dy12 = y1.sub(y2), dr12 = r1.sub(r2);
+    var dx13 = x1.sub(x3), dy13 = y1.sub(y3), dr13 = r1.sub(r3);
+
+    // D*dx12 + E*dy12 = -dr12
+    // D*dx13 + E*dy13 = -dr13
+    var det = dx12.mul(dy13).sub(dx13.mul(dy12));
+    if (det.valueOf() === 0) { showMsg('三点共线，无法确定圆'); return; }
+
+    var D = dy13.neg().mul(dr12).add(dy12.mul(dr13)).div(det);
+    var E = dx13.mul(dr12).sub(dx12.mul(dr13)).div(det);
+    var F = r1.neg().sub(D.mul(x1)).sub(E.mul(y1));
+
+    var h = D.neg().div(new Fraction(2));
+    var k = E.neg().div(new Fraction(2));
+    var r2val = h.mul(h).add(k.mul(k)).sub(F);
+    if (r2val.valueOf() < 0) { showMsg('计算出错：r² < 0'); return; }
+    var r = Math.sqrt(r2val.valueOf());
+
+    var out = '过三点 (' + fs(x1) + ',' + fs(y1) + ')，(' + fs(x2) + ',' + fs(y2) + ')，(' + fs(x3) + ',' + fs(y3) + ') 的圆：\n\n';
+    out += '圆心：(' + fs(h) + ', ' + fs(k) + ')';
+    if (h.d !== 1 || k.d !== 1) out += ' ≈ (' + h.valueOf().toFixed(6) + ', ' + k.valueOf().toFixed(6) + ')';
+    out += '\n半径：r² = ' + fs(r2val) + '，r = ' + r.toFixed(6) + '\n\n';
+    out += '标准方程：(x - ' + fs(h) + ')² + (y - ' + fs(k) + ')² = ' + fs(r2val) + '\n';
+    out += '一般方程：x² + y² + ' + fs(D) + 'x + ' + fs(E) + 'y + ' + fs(F) + ' = 0';
+    showResult(3, out);
+    showMsg('');
+  }
+
+  function clearPanel(i) {
+    document.getElementById('panel-' + i).querySelectorAll('input').forEach(function(el){ el.value = ''; });
+    document.getElementById('result-' + i).style.display = 'none';
+    showMsg('');
+  }
+</script>
+</body>
+</html>

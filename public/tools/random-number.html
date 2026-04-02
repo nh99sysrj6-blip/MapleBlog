@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>随机数生成器</title>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">🎲 随机数生成器</h2>
+    <div class="fields">
+      <div class="field">
+        <label for="minVal">最小值</label>
+        <input type="number" id="minVal" value="1">
+      </div>
+      <div class="field">
+        <label for="maxVal">最大值</label>
+        <input type="number" id="maxVal" value="100">
+      </div>
+      <div class="field">
+        <label for="count">数量</label>
+        <input type="number" id="count" value="1" min="1" max="1000">
+      </div>
+    </div>
+    <div class="options">
+      <label><input type="checkbox" id="noRepeat"> 不重复</label>
+      <label><input type="checkbox" id="sortResult"> 排序结果</label>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="generate()">生成</button>
+      <button class="btn-secondary" onclick="copyOutput()">复制结果</button>
+      <button class="btn-secondary" onclick="clearOutput()">清空</button>
+    </div>
+    <div id="msg" class="msg"></div>
+    <div id="outputWrap" class="output-wrap" style="display:none">
+      <div class="output-header">
+        <span id="outputInfo" class="output-info"></span>
+      </div>
+      <div id="output" class="output"></div>
+    </div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 560px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; }
+  .fields { display: flex; gap: 12px; margin-bottom: 16px; }
+  .field { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  .field input { padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; outline: none; background: #f8fafc; transition: border-color 0.2s; }
+  .field input:focus { border-color: #f59e0b; background: #fff; }
+  .options { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+  .options label { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #475569; cursor: pointer; }
+  .options input[type=checkbox] { accent-color: #f59e0b; width: 15px; height: 15px; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-primary { background: #f59e0b; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #d97706; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .msg { margin-top: 10px; font-size: 0.85rem; min-height: 20px; color: #f59e0b; }
+  .output-wrap { margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+  .output-header { margin-bottom: 8px; }
+  .output-info { font-size: 0.82rem; color: #94a3b8; }
+  .output { display: flex; flex-wrap: wrap; gap: 8px; }
+  .num-chip { background: #fef3c7; border: 1px solid #fde68a; border-radius: 6px; padding: 4px 12px; font-size: 0.95rem; font-weight: 600; color: #92400e; font-family: 'Courier New', monospace; }
+  @media (max-width: 480px) { .fields { flex-direction: column; } }
+</style>
+<script>
+  function randInt(min, max) {
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return min + (arr[0] % (max - min + 1));
+  }
+
+  function generate() {
+    const min = parseInt(document.getElementById('minVal').value);
+    const max = parseInt(document.getElementById('maxVal').value);
+    const count = parseInt(document.getElementById('count').value);
+    const noRepeat = document.getElementById('noRepeat').checked;
+    const sortResult = document.getElementById('sortResult').checked;
+
+    if (isNaN(min) || isNaN(max) || isNaN(count)) { showMsg('请输入有效数字'); return; }
+    if (min > max) { showMsg('最小值不能大于最大值'); return; }
+    if (count < 1 || count > 1000) { showMsg('数量范围：1 ~ 1000'); return; }
+    if (noRepeat && count > (max - min + 1)) { showMsg('不重复模式下，数量不能超过范围内的整数个数'); return; }
+
+    let nums = [];
+    if (noRepeat) {
+      const pool = [];
+      for (let i = min; i <= max; i++) pool.push(i);
+      // Fisher-Yates shuffle
+      for (let i = pool.length - 1; i > 0; i--) {
+        const arr = new Uint32Array(1);
+        crypto.getRandomValues(arr);
+        const j = arr[0] % (i + 1);
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      nums = pool.slice(0, count);
+    } else {
+      for (let i = 0; i < count; i++) nums.push(randInt(min, max));
+    }
+
+    if (sortResult) nums.sort((a, b) => a - b);
+
+    const output = document.getElementById('output');
+    output.innerHTML = nums.map(n => `<span class="num-chip">${n}</span>`).join('');
+    document.getElementById('outputInfo').textContent = `共生成 ${nums.length} 个随机数，范围 [${min}, ${max}]`;
+    document.getElementById('outputWrap').style.display = '';
+    showMsg('生成完成');
+  }
+
+  function copyOutput() {
+    const chips = document.querySelectorAll('.num-chip');
+    if (!chips.length) { showMsg('请先生成随机数'); return; }
+    const text = Array.from(chips).map(c => c.textContent).join(', ');
+    navigator.clipboard.writeText(text).then(() => showMsg('已复制到剪贴板'));
+  }
+
+  function clearOutput() {
+    document.getElementById('output').innerHTML = '';
+    document.getElementById('outputWrap').style.display = 'none';
+    showMsg('');
+  }
+
+  function showMsg(m) { document.getElementById('msg').textContent = m; }
+</script>
+</body>
+</html>

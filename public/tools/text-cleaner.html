@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文本清理器</title>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">🧹 文本清理器</h2>
+    <div class="options">
+      <label><input type="checkbox" id="trimSpaces" checked> 去首尾空格</label>
+      <label><input type="checkbox" id="mergeSpaces" checked> 合并多余空格</label>
+      <label><input type="checkbox" id="removeEmpty" checked> 删除空行</label>
+      <label><input type="checkbox" id="mergeEmpty"> 合并连续空行</label>
+    </div>
+    <div class="io-row">
+      <div class="io-col">
+        <label>输入</label>
+        <textarea id="input" placeholder="粘贴需要清理的文本..."></textarea>
+      </div>
+      <div class="io-col">
+        <label>输出</label>
+        <textarea id="output" placeholder="清理后的文本..." readonly></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="clean()">清理</button>
+      <button class="btn-secondary" onclick="clearAll()">清空</button>
+      <button class="btn-secondary" onclick="copyOutput()">复制结果</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+  .options { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+  .options label { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #475569; cursor: pointer; }
+  .options input[type=checkbox] { accent-color: #10b981; width: 15px; height: 15px; }
+  .io-row { display: flex; gap: 16px; }
+  .io-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  textarea { width: 100%; height: 200px; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: 'Courier New', monospace; resize: vertical; outline: none; transition: border-color 0.2s; background: #f8fafc; }
+  textarea:focus { border-color: #10b981; background: #fff; }
+  textarea[readonly] { background: #f1f5f9; }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .btn-primary { background: #10b981; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #059669; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .msg { margin-top: 10px; font-size: 0.85rem; min-height: 20px; color: #10b981; }
+  @media (max-width: 600px) { .io-row { flex-direction: column; } }
+</style>
+<script>
+  document.querySelectorAll('#trimSpaces,#mergeSpaces,#removeEmpty,#mergeEmpty').forEach(el => {
+    el.addEventListener('change', () => { if (document.getElementById('input').value) clean(); });
+  });
+  document.getElementById('input').addEventListener('input', clean);
+
+  function clean() {
+    let text = document.getElementById('input').value;
+    const trimSpaces = document.getElementById('trimSpaces').checked;
+    const mergeSpaces = document.getElementById('mergeSpaces').checked;
+    const removeEmpty = document.getElementById('removeEmpty').checked;
+    const mergeEmpty = document.getElementById('mergeEmpty').checked;
+    let lines = text.split('\n');
+    lines = lines.map(line => {
+      if (trimSpaces) line = line.trim();
+      if (mergeSpaces) line = line.replace(/[ \t]+/g, ' ');
+      return line;
+    });
+    if (removeEmpty) lines = lines.filter(l => l.trim() !== '');
+    else if (mergeEmpty) {
+      const result = [];
+      let prevEmpty = false;
+      for (const l of lines) {
+        const isEmpty = l.trim() === '';
+        if (isEmpty && prevEmpty) continue;
+        result.push(l);
+        prevEmpty = isEmpty;
+      }
+      lines = result;
+    }
+    document.getElementById('output').value = lines.join('\n');
+    showMsg('已清理');
+  }
+  function clearAll() {
+    document.getElementById('input').value = '';
+    document.getElementById('output').value = '';
+    showMsg('');
+  }
+  function copyOutput() {
+    const v = document.getElementById('output').value;
+    if (!v) { showMsg('没有可复制的内容'); return; }
+    navigator.clipboard.writeText(v).then(() => showMsg('已复制到剪贴板'));
+  }
+  function showMsg(m) {
+    document.getElementById('msg').textContent = m;
+  }
+</script>
+</body>
+</html>

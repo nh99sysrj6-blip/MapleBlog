@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直方图分析工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.2.0/fraction.min.js"></script>
+</head>
+<body class="p-6 bg-gray-100">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4">直方图统计分析</h2>
+            
+            <!-- 输入区域 -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block mb-2">左端点（a）</label>
+                    <input type="text" id="hist-a" class="w-full p-2 border rounded" placeholder="例如: 1/2 或 0.5">
+                </div>
+                <div>
+                    <label class="block mb-2">组距（d）</label>
+                    <input type="text" id="hist-d" class="w-full p-2 border rounded" placeholder="例如: 1/3 或 0.25">
+                </div>
+                <div>
+                    <label class="block mb-2">各组频率（空格分隔）</label>
+                    <input type="text" id="hist-f" class="w-full p-2 border rounded" placeholder="例如: 0.2 1/5 3/10">
+                </div>
+                <div>
+                    <label class="block mb-2">百分位数（可选）</label>
+                    <input type="text" id="hist-p" class="w-full p-2 border rounded" placeholder="例如: 0.75 或 3/4">
+                </div>
+                <button onclick="calculateHistogram()" class="w-full bg-indigo-500 text-white p-2 rounded hover:bg-indigo-600">
+                    开始计算
+                </button>
+            </div>
+
+            <!-- 结果显示区域 -->
+            <div id="hist-results" class="mt-6 space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        function parseFractionInput(input) {
+            try {
+                if (input.includes('/')) {
+                    const [n, d] = input.split('/').map(Number)
+                    return new Fraction(n, d)
+                }
+                return new Fraction(parseFloat(input))
+            } catch {
+                return null
+            }
+        }
+
+        function calculateHistogram() {
+            const results = document.getElementById('hist-results')
+            results.innerHTML = ''
+
+            // 解析输入值
+            const a = parseFractionInput(document.getElementById('hist-a').value)
+            const d = parseFractionInput(document.getElementById('hist-d').value)
+            const fInputs = document.getElementById('hist-f').value.split(' ').filter(Boolean)
+            const pInput = document.getElementById('hist-p').value
+
+            // 验证输入有效性
+            if (!a || !d || fInputs.length === 0) {
+                results.innerHTML = '<p class="text-red-500">错误：请输入有效的输入值</p>'
+                return
+            }
+
+            // 转换频率为分数数组
+            const f = fInputs.map(parseFractionInput).filter(f => f !== null)
+            if (f.length !== fInputs.length) {
+                results.innerHTML = '<p class="text-red-500">错误：包含无效的频率值</p>'
+                return
+            }
+
+            // 计算频率总和
+            const sump = f.reduce((acc, val) => acc.add(val), new Fraction(0))
+            if (!sump.equals(1)) {
+                results.innerHTML = `<p class="text-red-500">错误：频率总和应为1（当前为${sump.toFraction()}）</p>`
+                return
+            }
+
+            // 计算均值和方差
+            let x = d.div(2)
+            let s = new Fraction(0)
+            const n = f.length
+            
+            for (let i = 0; i < n; i++) {
+                x = x.add(a.add(d.mul(i)).mul(f[i]))
+            }
+            
+            for (let i = 0; i < n; i++) {
+                const mid = a.add(d.mul(i)).add(d.div(2))
+                s = s.add(mid.sub(x).pow(2).mul(f[i]))
+            }
+
+            // 显示基础统计量
+            let output = `
+                <div class="space-y-2">
+                    <p class="font-medium">均值 = ${x.toFraction()} ≈ ${x.valueOf().toFixed(4)}</p>
+                    <p class="font-medium">方差 = ${s.toFraction()} ≈ ${s.valueOf().toFixed(4)}</p>
+            `
+
+            // 百分位数计算
+            if (pInput) {
+                const p = parseFractionInput(pInput)
+                if (p && p.compare(0) > 0 && p.compare(1) < 0) {
+                    let m = new Fraction(0)
+                    for (let i = 0; i < n; i++) {
+                        if (m.add(f[i]).compare(p) >= 0) {
+                            const q = a.add(d.mul(i)).sub(m.sub(p).div(f[i-1]).mul(d))
+                            const integer = q.floor()
+                            const decimal = q.sub(integer)
+                            output += `<p>${p.toFraction()} 分位数 = ${integer} + ${decimal.toFraction()}</p>`
+                            break
+                        }
+                        m = m.add(f[i])
+                    }
+                }
+            }
+
+            // 中位数计算
+            let m = new Fraction(0)
+            for (let i = 0; i < n; i++) {
+                if (m.add(f[i]).compare(0.5) >= 0) {
+                    const q = a.add(d.mul(i)).sub(m.sub(0.5).div(f[i-1]).mul(d))
+                    const integer = q.floor()
+                    const decimal = q.sub(integer)
+                    output += `<p class="font-medium">中位数 = ${integer} + ${decimal.toFraction()}</p>`
+                    break
+                }
+                m = m.add(f[i])
+            }
+
+            output += '</div>'
+            results.innerHTML = output
+        }
+    </script>
+</body>
+</html>

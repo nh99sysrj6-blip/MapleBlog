@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>二维码生成器</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">📱 二维码生成器</h2>
+
+    <div class="form">
+      <div class="field">
+        <label>文本 / 链接</label>
+        <textarea id="qrText" placeholder="输入要生成二维码的文本或 URL..." rows="3"></textarea>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>尺寸</label>
+          <select id="qrSize">
+            <option value="128">128 × 128</option>
+            <option value="200">200 × 200</option>
+            <option value="256" selected>256 × 256</option>
+            <option value="320">320 × 320</option>
+            <option value="512">512 × 512</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>容错级别</label>
+          <select id="qrLevel">
+            <option value="L">L（低 ~7%）</option>
+            <option value="M" selected>M（中 ~15%）</option>
+            <option value="Q">Q（较高 ~25%）</option>
+            <option value="H">H（高 ~30%）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>前景色</label>
+          <div class="color-wrap">
+            <input type="color" id="fgColor" value="#000000">
+            <span id="fgHex">#000000</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>背景色</label>
+          <div class="color-wrap">
+            <input type="color" id="bgColor" value="#ffffff">
+            <span id="bgHex">#ffffff</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" onclick="generateQR()">生成二维码</button>
+        <button class="btn-secondary" onclick="clearAll()">清空</button>
+      </div>
+    </div>
+
+    <div id="resultArea" style="display:none">
+      <div class="divider"></div>
+      <div class="result-wrap">
+        <div id="qrcode"></div>
+      </div>
+      <div class="btn-row" style="justify-content:center; margin-top:14px">
+        <button class="btn-primary" onclick="downloadQR('png')">下载 PNG</button>
+        <button class="btn-secondary" onclick="downloadQR('svg')">下载 SVG</button>
+      </div>
+    </div>
+
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 600px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; }
+  .form { display: flex; flex-direction: column; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .field-row { display: flex; gap: 14px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: inherit; resize: vertical; outline: none; transition: border-color 0.2s; background: #f8fafc; }
+  textarea:focus { border-color: #3b82f6; background: #fff; }
+  select { width: 100%; padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; background: #f8fafc; cursor: pointer; transition: border-color 0.2s; }
+  select:focus { border-color: #3b82f6; }
+  .color-wrap { display: flex; align-items: center; gap: 10px; }
+  input[type="color"] { width: 40px; height: 36px; border: 1.5px solid #e2e8f0; border-radius: 6px; cursor: pointer; padding: 2px; background: #f8fafc; }
+  .color-wrap span { font-size: 0.85rem; font-family: 'Courier New', monospace; color: #475569; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-primary { background: #3b82f6; color: #fff; border: none; border-radius: 8px; padding: 10px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 20px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .divider { height: 1px; background: #e2e8f0; margin: 20px 0; }
+  .result-wrap { display: flex; justify-content: center; }
+  #qrcode { display: inline-block; padding: 12px; background: #fff; border-radius: 10px; border: 1.5px solid #e2e8f0; }
+  #qrcode canvas, #qrcode img { display: block; }
+  .msg { margin-top: 12px; font-size: 0.85rem; min-height: 20px; color: #3b82f6; }
+  .msg.error { color: #ef4444; }
+  @media (max-width: 480px) { .field-row { flex-direction: column; } }
+</style>
+
+<script>
+  var qrInstance = null;
+
+  document.getElementById('fgColor').addEventListener('input', function() {
+    document.getElementById('fgHex').textContent = this.value;
+  });
+  document.getElementById('bgColor').addEventListener('input', function() {
+    document.getElementById('bgHex').textContent = this.value;
+  });
+
+  function generateQR() {
+    var text = document.getElementById('qrText').value.trim();
+    if (!text) { showMsg('请输入文本或链接', true); return; }
+
+    var size = parseInt(document.getElementById('qrSize').value);
+    var level = document.getElementById('qrLevel').value;
+    var fg = document.getElementById('fgColor').value;
+    var bg = document.getElementById('bgColor').value;
+
+    var container = document.getElementById('qrcode');
+    container.innerHTML = '';
+
+    try {
+      qrInstance = new QRCode(container, {
+        text: text,
+        width: size,
+        height: size,
+        colorDark: fg,
+        colorLight: bg,
+        correctLevel: QRCode.CorrectLevel[level]
+      });
+      document.getElementById('resultArea').style.display = 'block';
+      showMsg('生成成功');
+    } catch(e) {
+      showMsg('生成失败：' + e.message, true);
+    }
+  }
+
+  function downloadQR(type) {
+    var container = document.getElementById('qrcode');
+    var canvas = container.querySelector('canvas');
+    var img = container.querySelector('img');
+
+    if (type === 'png') {
+      var src = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+      if (!src) { showMsg('请先生成二维码', true); return; }
+      var a = document.createElement('a');
+      a.href = src;
+      a.download = 'qrcode.png';
+      a.click();
+    } else {
+      // SVG fallback: draw canvas to SVG via foreignObject isn't reliable, use PNG instead
+      showMsg('SVG 下载暂不支持，已改为 PNG 下载');
+      downloadQR('png');
+    }
+  }
+
+  function clearAll() {
+    document.getElementById('qrText').value = '';
+    document.getElementById('qrcode').innerHTML = '';
+    document.getElementById('resultArea').style.display = 'none';
+    showMsg('');
+  }
+
+  function showMsg(m, isErr) {
+    var el = document.getElementById('msg');
+    el.textContent = m;
+    el.className = 'msg' + (isErr ? ' error' : '');
+  }
+</script>
+</body>
+</html>

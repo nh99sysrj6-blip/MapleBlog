@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>等差乘等比求和计算器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.2.0/fraction.min.js"></script>
+</head>
+<body class="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-96">
+        <h1 class="text-2xl font-bold mb-6 text-gray-800">错位相减法计算器</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">a (系数):</label>
+                <input type="text" id="a" class="w-full border rounded px-3 py-2" placeholder="如: 3/4 或 0.75">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">b (常数项):</label>
+                <input type="text" id="b" class="w-full border rounded px-3 py-2" placeholder="如: 1/2 或 0.5">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">q (公比):</label>
+                <input type="text" id="q" class="w-full border rounded px-3 py-2" placeholder="如: 2 或 1/3">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">m (指数调整):</label>
+                <input type="text" id="m" class="w-full border rounded px-3 py-2" placeholder="整数，如: 2">
+            </div>
+        </div>
+
+        <button onclick="calculate()" class="w-full bg-blue-500 text-white py-2 px-4 rounded mt-6 hover:bg-blue-600 transition-colors">
+            计算
+        </button>
+
+        <div id="result" class="hidden mt-6 p-4 bg-gray-50 rounded">
+            <p class="font-medium text-gray-800">结果公式：Sₙ = (A⋅n + B)qⁿ - B</p>
+            <div class="mt-3 space-y-2">
+                <p class="text-sm">A = <span id="A-value" class="font-mono text-blue-600"></span></p>
+                <p class="text-sm">B = <span id="B-value" class="font-mono text-blue-600"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 确保Fraction库可用性检查
+        if (typeof Fraction === 'undefined') {
+            alert('错误：分数库加载失败，请检查网络连接！');
+        }
+
+        function parseInput(value) {
+            try {
+                return new Fraction(value);
+            } catch (e) {
+                throw new Error('无效的分数格式，请使用如 3/4 或 0.75 的格式');
+            }
+        }
+
+        function calculate() {
+            try {
+                // 检查Fraction库是否加载
+                if (typeof Fraction === 'undefined') {
+                    throw new Error('分数库加载失败，请刷新页面重试');
+                }
+
+                // 解析输入值
+                const a = parseInput(document.getElementById('a').value);
+                const b = parseInput(document.getElementById('b').value);
+                const q = parseInput(document.getElementById('q').value);
+                const m = parseInt(document.getElementById('m').value);
+
+                // 验证输入有效性
+                if (isNaN(m)) throw new Error('m必须是整数');
+                if (q.valueOf() === 1) throw new Error('q不能等于1');
+
+                // 计算调整系数
+                const qPower = q.pow(m + 1);
+                const adjustedA = a.mul(qPower);
+                const adjustedB = b.mul(qPower);
+
+                // 计算核心参数
+                const qMinus1 = q.sub(1);
+                const A = adjustedA.div(qMinus1);
+                const B = adjustedB.sub(A).div(qMinus1);
+
+                // 显示结果
+                document.getElementById('result').classList.remove('hidden');
+                document.getElementById('A-value').textContent = A.toFraction();
+                document.getElementById('B-value').textContent = B.toFraction();
+                
+            } catch (error) {
+                alert(`计算错误: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

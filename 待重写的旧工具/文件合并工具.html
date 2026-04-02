@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件合并工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .file-input::file-selector-button {
+            @apply bg-blue-500 text-white px-4 py-2 rounded-lg border-0 cursor-pointer transition-colors duration-200;
+        }
+        .file-input::file-selector-button:hover {
+            @apply bg-blue-600;
+        }
+        #downloadLink {
+            @apply text-blue-500 hover:text-blue-700 underline cursor-pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-6">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6">文件合并工具</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">选择图片文件 (jpg/png)</label>
+                <input type="file" id="imageFile" accept="image/jpeg, image/png" class="file-input">
+                <div id="imageName" class="text-sm text-gray-500 mt-1"></div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">选择压缩包文件 (rar/zip)</label>
+                <input type="file" id="archiveFile" accept=".rar, .zip" class="file-input">
+                <div id="archiveName" class="text-sm text-gray-500 mt-1"></div>
+            </div>
+
+            <button onclick="processFiles()" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors duration-200">
+                开始合并
+            </button>
+
+            <div id="status" class="text-sm text-gray-600 mt-4"></div>
+            <div id="result" class="mt-4"></div>
+        </div>
+    </div>
+
+    <script>
+        const readFileAsBuffer = (file) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsArrayBuffer(file);
+            });
+        };
+
+        document.getElementById('imageFile').addEventListener('change', function(e) {
+            document.getElementById('imageName').textContent = e.target.files[0]?.name || '';
+        });
+
+        document.getElementById('archiveFile').addEventListener('change', function(e) {
+            document.getElementById('archiveName').textContent = e.target.files[0]?.name || '';
+        });
+
+        async function processFiles() {
+            const imageFile = document.getElementById('imageFile').files[0];
+            const archiveFile = document.getElementById('archiveFile').files[0];
+            const status = document.getElementById('status');
+            const result = document.getElementById('result');
+
+            status.textContent = '';
+            result.innerHTML = '';
+
+            if (!imageFile || !archiveFile) {
+                status.textContent = '请先选择两个文件！';
+                return;
+            }
+
+            try {
+                status.textContent = '文件处理中...';
+
+                // 读取文件内容
+                const [imageBuffer, archiveBuffer] = await Promise.all([
+                    readFileAsBuffer(imageFile),
+                    readFileAsBuffer(archiveFile)
+                ]);
+
+                // 合并文件
+                const combined = new Uint8Array(imageBuffer.byteLength + archiveBuffer.byteLength);
+                combined.set(new Uint8Array(imageBuffer), 0);
+                combined.set(new Uint8Array(archiveBuffer), imageBuffer.byteLength);
+
+                // 创建下载链接
+                const blob = new Blob([combined], { type: imageFile.type });
+                const url = URL.createObjectURL(blob);
+                
+                result.innerHTML = `
+                    <div class="text-green-600">
+                        合并成功！点击下载：
+                        <a id="downloadLink" href="${url}" download="${imageFile.name}">${imageFile.name}</a>
+                    </div>
+                `;
+                status.textContent = '';
+            } catch (error) {
+                status.textContent = '处理失败：' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>统计计算工具</title>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/fraction.js@4.3.7/fraction.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">📈 统计计算工具</h2>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('chi')">卡方检验（2×2列联表）</button>
+      <button class="tab" onclick="switchTab('reg')">一元线性回归</button>
+    </div>
+
+    <!-- 卡方检验 -->
+    <div id="tab-chi" class="tab-panel">
+      <p class="panel-desc">输入 2×2 列联表数据，计算卡方统计量 K²</p>
+      <div class="chi-table-wrap">
+        <table class="input-table">
+          <thead>
+            <tr><th></th><th>b₁（是）</th><th>b₂（否）</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="row-label">a₁（是）</td>
+              <td><input type="text" id="chi-a" placeholder="a"></td>
+              <td><input type="text" id="chi-b" placeholder="b"></td>
+            </tr>
+            <tr>
+              <td class="row-label">a₂（否）</td>
+              <td><input type="text" id="chi-c" placeholder="c"></td>
+              <td><input type="text" id="chi-d" placeholder="d"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="calcChi()">计算</button>
+        <button class="btn-secondary" onclick="clearChi()">清空</button>
+      </div>
+      <div id="chi-result" class="result-box" style="display:none"></div>
+    </div>
+
+    <!-- 线性回归 -->
+    <div id="tab-reg" class="tab-panel" style="display:none">
+      <p class="panel-desc">输入数据点（每行一个 x y，空格分隔），计算一元线性回归方程 ŷ = b̂x + â</p>
+      <div class="form-item">
+        <label>数据点（每行：x y）</label>
+        <textarea id="reg-data" placeholder="1 2&#10;2 4&#10;3 5&#10;4 7&#10;5 9" rows="6"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="calcReg()">计算</button>
+        <button class="btn-secondary" onclick="clearReg()">清空</button>
+      </div>
+      <div id="reg-result" class="result-box" style="display:none"></div>
+    </div>
+
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 700px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 0; }
+  .tab { background: none; border: none; padding: 8px 16px; font-size: 0.9rem; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+  .tab.active { color: #10b981; border-bottom-color: #10b981; }
+  .tab:hover { color: #10b981; }
+  .panel-desc { font-size: 0.88rem; color: #64748b; margin-bottom: 14px; }
+  .chi-table-wrap { margin-bottom: 14px; overflow-x: auto; }
+  .input-table { border-collapse: collapse; font-size: 0.9rem; }
+  .input-table th, .input-table td { padding: 8px 10px; border: 1.5px solid #e2e8f0; }
+  .input-table th { background: #f1f5f9; color: #475569; font-weight: 700; text-align: center; }
+  .row-label { background: #f1f5f9; color: #475569; font-weight: 700; white-space: nowrap; }
+  .input-table input { width: 80px; padding: 6px 8px; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; outline: none; text-align: center; background: #f8fafc; }
+  .input-table input:focus { border-color: #10b981; background: #fff; }
+  .form-item { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  textarea { padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: 'Courier New', monospace; resize: vertical; outline: none; transition: border-color 0.2s; background: #f8fafc; width: 100%; }
+  textarea:focus { border-color: #10b981; background: #fff; }
+  .btn-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .btn-primary { background: #10b981; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #059669; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .result-box { background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 16px; margin-bottom: 10px; font-family: 'Courier New', monospace; font-size: 0.9rem; color: #065f46; line-height: 2; white-space: pre-wrap; word-break: break-all; }
+  .msg { font-size: 0.85rem; min-height: 20px; color: #ef4444; margin-top: 6px; }
+</style>
+<script>
+  function switchTab(tab) {
+    document.getElementById('tab-chi').style.display = tab === 'chi' ? '' : 'none';
+    document.getElementById('tab-reg').style.display = tab === 'reg' ? '' : 'none';
+    document.querySelectorAll('.tab').forEach(function(el, i) {
+      el.classList.toggle('active', (i === 0 && tab === 'chi') || (i === 1 && tab === 'reg'));
+    });
+    showMsg('');
+  }
+
+  function pf(s) {
+    s = (s || '').trim();
+    if (!s) return null;
+    try { return new Fraction(s); } catch(e) { return null; }
+  }
+
+  function fs(f) {
+    if (!f) return '?';
+    if (f.d === 1) return String(f.s * f.n);
+    return f.toFraction();
+  }
+
+  // 卡方检验
+  // K² = n(ad-bc)² / [(a+b)(c+d)(a+c)(b+d)]
+  function calcChi() {
+    var a = pf(document.getElementById('chi-a').value);
+    var b = pf(document.getElementById('chi-b').value);
+    var c = pf(document.getElementById('chi-c').value);
+    var d = pf(document.getElementById('chi-d').value);
+    if (!a||!b||!c||!d) { showMsg('请填写所有四个格子的数据'); return; }
+    if (a.valueOf()<0||b.valueOf()<0||c.valueOf()<0||d.valueOf()<0) { showMsg('数据不能为负数'); return; }
+
+    var n = a.add(b).add(c).add(d);
+    var ad = a.mul(d);
+    var bc = b.mul(c);
+    var adbc = ad.sub(bc);
+    var r1 = a.add(b);
+    var r2 = c.add(d);
+    var col1 = a.add(c);
+    var col2 = b.add(d);
+    var denom = r1.mul(r2).mul(col1).mul(col2);
+    if (denom.valueOf() === 0) { showMsg('行列边际和不能为 0'); return; }
+    var K2 = n.mul(adbc).mul(adbc).div(denom);
+
+    var out = '列联表：\n';
+    out += '         b₁    b₂    合计\n';
+    out += 'a₁       ' + fs(a).padStart(5) + ' ' + fs(b).padStart(5) + ' ' + fs(r1).padStart(5) + '\n';
+    out += 'a₂       ' + fs(c).padStart(5) + ' ' + fs(d).padStart(5) + ' ' + fs(r2).padStart(5) + '\n';
+    out += '合计     ' + fs(col1).padStart(5) + ' ' + fs(col2).padStart(5) + ' ' + fs(n).padStart(5) + '\n\n';
+    out += 'K² = n(ad-bc)² / [(a+b)(c+d)(a+c)(b+d)]\n';
+    out += '   = ' + fs(n) + ' × (' + fs(adbc) + ')² / (' + fs(r1) + '×' + fs(r2) + '×' + fs(col1) + '×' + fs(col2) + ')\n';
+    out += '   = ' + fs(K2) + ' ≈ ' + K2.valueOf().toFixed(4) + '\n\n';
+    out += '参考临界值：\n';
+    out += '  K² ≥ 3.841 → 显著性水平 0.05（有关联）\n';
+    out += '  K² ≥ 6.635 → 显著性水平 0.01（强关联）\n\n';
+    var kv = K2.valueOf();
+    if (kv >= 6.635) out += '结论：K² ≥ 6.635，在显著性水平 0.01 下有充分理由认为两者有关联。';
+    else if (kv >= 3.841) out += '结论：K² ≥ 3.841，在显著性水平 0.05 下有理由认为两者有关联。';
+    else out += '结论：K² < 3.841，没有充分理由认为两者有关联。';
+
+    document.getElementById('chi-result').textContent = out;
+    document.getElementById('chi-result').style.display = 'block';
+    showMsg('');
+  }
+
+  function clearChi() {
+    ['chi-a','chi-b','chi-c','chi-d'].forEach(function(id){ document.getElementById(id).value = ''; });
+    document.getElementById('chi-result').style.display = 'none';
+    showMsg('');
+  }
+
+  // 一元线性回归
+  // b̂ = (Σxi*yi - n*x̄*ȳ) / (Σxi² - n*x̄²)
+  // â = ȳ - b̂*x̄
+  function calcReg() {
+    var raw = document.getElementById('reg-data').value.trim();
+    if (!raw) { showMsg('请输入数据'); return; }
+    var lines = raw.split('\n').filter(function(l){ return l.trim(); });
+    var xs = [], ys = [];
+    for (var i = 0; i < lines.length; i++) {
+      var parts = lines[i].trim().split(/\s+/);
+      if (parts.length < 2) { showMsg('第 ' + (i+1) + ' 行格式错误，需要两个数'); return; }
+      var x = parseFloat(parts[0]), y = parseFloat(parts[1]);
+      if (isNaN(x) || isNaN(y)) { showMsg('第 ' + (i+1) + ' 行包含非数字'); return; }
+      xs.push(x); ys.push(y);
+    }
+    var n = xs.length;
+    if (n < 2) { showMsg('至少需要 2 个数据点'); return; }
+
+    var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+    for (var i = 0; i < n; i++) {
+      sumX += xs[i]; sumY += ys[i];
+      sumXY += xs[i]*ys[i];
+      sumX2 += xs[i]*xs[i];
+      sumY2 += ys[i]*ys[i];
+    }
+    var xBar = sumX / n, yBar = sumY / n;
+    var Sxy = sumXY - n*xBar*yBar;
+    var Sxx = sumX2 - n*xBar*xBar;
+    var Syy = sumY2 - n*yBar*yBar;
+    if (Math.abs(Sxx) < 1e-12) { showMsg('所有 x 值相同，无法回归'); return; }
+    var bHat = Sxy / Sxx;
+    var aHat = yBar - bHat * xBar;
+    var r = Sxy / Math.sqrt(Sxx * Syy);
+
+    var out = '数据统计（n = ' + n + '）：\n';
+    out += '  x̄ = ' + xBar.toFixed(6) + '，ȳ = ' + yBar.toFixed(6) + '\n';
+    out += '  Σxi = ' + sumX.toFixed(4) + '，Σyi = ' + sumY.toFixed(4) + '\n';
+    out += '  Σxi² = ' + sumX2.toFixed(4) + '，Σxiyi = ' + sumXY.toFixed(4) + '\n';
+    out += '  Sxx = ' + Sxx.toFixed(6) + '，Sxy = ' + Sxy.toFixed(6) + '\n\n';
+    out += '回归系数：\n';
+    out += '  b̂ = Sxy / Sxx = ' + bHat.toFixed(6) + '\n';
+    out += '  â = ȳ - b̂·x̄ = ' + aHat.toFixed(6) + '\n\n';
+    out += '回归方程：ŷ = ' + bHat.toFixed(4) + 'x + ' + aHat.toFixed(4) + '\n\n';
+    out += '相关系数：r = ' + r.toFixed(6) + '\n';
+    out += '决定系数：R² = ' + (r*r).toFixed(6) + '\n\n';
+    var absR = Math.abs(r);
+    if (absR >= 0.75) out += '结论：|r| ≥ 0.75，线性相关性较强。';
+    else if (absR >= 0.5) out += '结论：0.5 ≤ |r| < 0.75，线性相关性中等。';
+    else out += '结论：|r| < 0.5，线性相关性较弱。';
+
+    document.getElementById('reg-result').textContent = out;
+    document.getElementById('reg-result').style.display = 'block';
+    showMsg('');
+  }
+
+  function clearReg() {
+    document.getElementById('reg-data').value = '';
+    document.getElementById('reg-result').style.display = 'none';
+    showMsg('');
+  }
+
+  function showMsg(m) { document.getElementById('msg').textContent = m; }
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML 格式化工具</title>
+  <script src="https://cdn.jsdelivr.net/npm/js-beautify@1.15.1/js/lib/beautify-html.js"></script>
+  <style>html, body { background: transparent !important; min-height: unset !important; }</style>
+  <script>(function() {
+    function reportHeight() { var h = document.documentElement.scrollHeight || document.body.scrollHeight; window.parent.postMessage({ type: 'tool-height', height: h }, '*'); }
+    window.addEventListener('load', reportHeight); window.addEventListener('resize', reportHeight);
+    var mo = new MutationObserver(reportHeight);
+    document.addEventListener('DOMContentLoaded', function() { mo.observe(document.body, { childList: true, subtree: true, attributes: true }); });
+  })();</script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">🔧 HTML 格式化工具</h2>
+    <div class="toolbar">
+      <div class="field-inline">
+        <label>缩进</label>
+        <select id="indent">
+          <option value="2" selected>2 空格</option>
+          <option value="4">4 空格</option>
+          <option value="tab">Tab</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="formatHtml()">格式化</button>
+        <button class="btn-secondary" onclick="copyOutput()">复制结果</button>
+        <button class="btn-secondary" onclick="clearAll()">清空</button>
+      </div>
+    </div>
+    <div class="io-row">
+      <div class="io-col">
+        <label>输入 HTML</label>
+        <textarea id="input" placeholder="粘贴需要格式化的 HTML 代码..."></textarea>
+      </div>
+      <div class="io-col">
+        <label>格式化结果</label>
+        <textarea id="output" readonly placeholder="格式化后的 HTML 将显示在这里..."></textarea>
+      </div>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+  .toolbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .field-inline { display: flex; align-items: center; gap: 8px; }
+  .field-inline label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  select { padding: 7px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; background: #f8fafc; cursor: pointer; }
+  select:focus { border-color: #ef4444; }
+  .io-row { display: flex; gap: 16px; }
+  .io-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  textarea { width: 100%; height: 360px; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; font-family: 'Courier New', monospace; resize: vertical; outline: none; background: #f8fafc; transition: border-color 0.2s; }
+  textarea:focus { border-color: #ef4444; background: #fff; }
+  textarea[readonly] { background: #f1f5f9; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-primary { background: #ef4444; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #dc2626; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .msg { margin-top: 10px; font-size: 0.85rem; min-height: 20px; color: #ef4444; }
+  @media (max-width: 700px) { .io-row { flex-direction: column; } }
+</style>
+<script>
+  function formatHtml() {
+    var input = document.getElementById('input').value;
+    if (!input.trim()) { showMsg('请输入 HTML 内容'); return; }
+    if (typeof html_beautify === 'undefined') { showMsg('格式化库加载中，请稍后重试'); return; }
+    var indent = document.getElementById('indent').value;
+    var useTabs = indent === 'tab';
+    var result = html_beautify(input, {
+      indent_size: useTabs ? 1 : Number(indent),
+      indent_with_tabs: useTabs,
+      wrap_line_length: 0,
+      preserve_newlines: true,
+      max_preserve_newlines: 2
+    });
+    document.getElementById('output').value = result;
+    showMsg('格式化完成');
+  }
+  function copyOutput() {
+    var v = document.getElementById('output').value;
+    if (!v) { showMsg('没有可复制的内容'); return; }
+    navigator.clipboard.writeText(v).then(function() { showMsg('已复制到剪贴板'); });
+  }
+  function clearAll() {
+    document.getElementById('input').value = '';
+    document.getElementById('output').value = '';
+    showMsg('');
+  }
+  function showMsg(m) { document.getElementById('msg').textContent = m; }
+</script>
+</body>
+</html>

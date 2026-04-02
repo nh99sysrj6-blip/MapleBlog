@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>二维码解码器</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">📷 二维码解码器</h2>
+
+    <div class="upload-area" id="uploadArea">
+      <div class="upload-icon">📷</div>
+      <div class="upload-text">点击选择二维码图片或拖拽到此处</div>
+      <div class="upload-hint">支持 JPG、PNG、GIF、WebP 格式</div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none">
+    </div>
+
+    <canvas id="canvas" style="display:none"></canvas>
+
+    <div id="previewArea" style="display:none">
+      <div class="preview-wrap">
+        <img id="previewImg" class="preview-img">
+      </div>
+    </div>
+
+    <div id="resultArea" style="display:none">
+      <div class="result-label">解码结果</div>
+      <div class="result-box" id="resultBox"></div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="copyResult()">复制结果</button>
+        <button class="btn-secondary" onclick="openLink()">打开链接</button>
+        <button class="btn-secondary" onclick="resetTool()">重新选择</button>
+      </div>
+    </div>
+
+    <div id="failArea" style="display:none">
+      <div class="fail-box">未能识别二维码，请确保图片清晰且包含完整的二维码。</div>
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="resetTool()">重新选择</button>
+      </div>
+    </div>
+
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 600px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; }
+  .upload-area { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+  .upload-area:hover, .upload-area.drag-over { border-color: #06b6d4; background: #ecfeff; }
+  .upload-icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .upload-text { font-size: 1rem; font-weight: 600; color: #334155; margin-bottom: 6px; }
+  .upload-hint { font-size: 0.82rem; color: #94a3b8; }
+  .preview-wrap { margin: 16px 0; text-align: center; background: #f1f5f9; border-radius: 10px; padding: 12px; }
+  .preview-img { max-width: 100%; max-height: 260px; border-radius: 6px; object-fit: contain; }
+  .result-label { font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 8px; margin-top: 16px; }
+  .result-box { background: #f0fdfa; border: 1.5px solid #99f6e4; border-radius: 10px; padding: 14px 16px; font-size: 0.95rem; color: #134e4a; word-break: break-all; line-height: 1.6; min-height: 60px; }
+  .fail-box { background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 10px; padding: 14px 16px; font-size: 0.9rem; color: #991b1b; margin-top: 16px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .btn-primary { background: #06b6d4; color: #fff; border: none; border-radius: 8px; padding: 10px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #0891b2; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 20px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .msg { margin-top: 12px; font-size: 0.85rem; min-height: 20px; color: #06b6d4; }
+  .msg.error { color: #ef4444; }
+</style>
+
+<script>
+  var decodedText = '';
+  var uploadArea = document.getElementById('uploadArea');
+  var fileInput = document.getElementById('fileInput');
+  var canvas = document.getElementById('canvas');
+  var ctx = canvas.getContext('2d');
+
+  uploadArea.addEventListener('click', function() { fileInput.click(); });
+  fileInput.addEventListener('change', function() {
+    if (fileInput.files[0]) loadFile(fileInput.files[0]);
+  });
+  uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+  uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('drag-over'); });
+  uploadArea.addEventListener('drop', function(e) {
+    e.preventDefault(); uploadArea.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+
+  function loadFile(file) {
+    if (!file.type.startsWith('image/')) { showMsg('请选择图片文件', true); return; }
+    showMsg('识别中...');
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+
+        document.getElementById('previewImg').src = e.target.result;
+        document.getElementById('previewArea').style.display = 'block';
+        uploadArea.style.display = 'none';
+
+        if (code) {
+          decodedText = code.data;
+          document.getElementById('resultBox').textContent = decodedText;
+          document.getElementById('resultArea').style.display = 'block';
+          document.getElementById('failArea').style.display = 'none';
+          showMsg('识别成功');
+        } else {
+          decodedText = '';
+          document.getElementById('resultArea').style.display = 'none';
+          document.getElementById('failArea').style.display = 'block';
+          showMsg('未能识别', true);
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function copyResult() {
+    if (!decodedText) return;
+    navigator.clipboard.writeText(decodedText).then(function() { showMsg('已复制到剪贴板'); });
+  }
+
+  function openLink() {
+    if (!decodedText) return;
+    if (decodedText.startsWith('http://') || decodedText.startsWith('https://')) {
+      window.open(decodedText, '_blank');
+    } else {
+      showMsg('内容不是有效链接', true);
+    }
+  }
+
+  function resetTool() {
+    decodedText = '';
+    fileInput.value = '';
+    uploadArea.style.display = 'block';
+    document.getElementById('previewArea').style.display = 'none';
+    document.getElementById('resultArea').style.display = 'none';
+    document.getElementById('failArea').style.display = 'none';
+    showMsg('');
+  }
+
+  function showMsg(m, isErr) {
+    var el = document.getElementById('msg');
+    el.textContent = m;
+    el.className = 'msg' + (isErr ? ' error' : '');
+  }
+</script>
+</body>
+</html>

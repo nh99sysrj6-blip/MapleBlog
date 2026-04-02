@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文本查找替换</title>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">🔎 文本查找替换</h2>
+    <div class="fr-row">
+      <div class="fr-field">
+        <label for="find">查找</label>
+        <input type="text" id="find" placeholder="输入查找内容...">
+      </div>
+      <div class="fr-field">
+        <label for="replace">替换为</label>
+        <input type="text" id="replace" placeholder="输入替换内容（留空则删除）">
+      </div>
+      <div class="fr-opts">
+        <label><input type="checkbox" id="useRegex"> 正则</label>
+        <label><input type="checkbox" id="caseSensitive"> 区分大小写</label>
+      </div>
+    </div>
+    <div class="io-row">
+      <div class="io-col">
+        <label>输入</label>
+        <textarea id="input" placeholder="输入需要处理的文本..."></textarea>
+      </div>
+      <div class="io-col">
+        <label>输出</label>
+        <textarea id="output" placeholder="替换后的文本..." readonly></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="findReplace()">替换</button>
+      <button class="btn-secondary" onclick="clearAll()">清空</button>
+      <button class="btn-secondary" onclick="copyOutput()">复制结果</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+  .fr-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .fr-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 160px; }
+  .fr-field label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  .fr-field input { padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; }
+  .fr-field input:focus { border-color: #10b981; }
+  .fr-opts { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .fr-opts label { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; color: #475569; cursor: pointer; }
+  .fr-opts input[type=checkbox] { accent-color: #10b981; }
+  .io-row { display: flex; gap: 16px; }
+  .io-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  textarea { width: 100%; height: 200px; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: 'Courier New', monospace; resize: vertical; outline: none; transition: border-color 0.2s; background: #f8fafc; }
+  textarea:focus { border-color: #10b981; background: #fff; }
+  textarea[readonly] { background: #f1f5f9; }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .btn-primary { background: #10b981; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #059669; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 9px 18px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .msg { margin-top: 10px; font-size: 0.85rem; min-height: 20px; color: #10b981; }
+  .msg.error { color: #ef4444; }
+  @media (max-width: 600px) { .io-row { flex-direction: column; } }
+</style>
+<script>
+  function findReplace() {
+    const text = document.getElementById('input').value;
+    const findVal = document.getElementById('find').value;
+    const replaceVal = document.getElementById('replace').value;
+    const useRegex = document.getElementById('useRegex').checked;
+    const caseSensitive = document.getElementById('caseSensitive').checked;
+    if (!findVal) { showMsg('请输入查找内容', true); return; }
+    let count = 0;
+    let result;
+    try {
+      if (useRegex) {
+        const flags = 'g' + (caseSensitive ? '' : 'i');
+        const re = new RegExp(findVal, flags);
+        result = text.replace(re, (m) => { count++; return replaceVal; });
+      } else {
+        const flags = 'g' + (caseSensitive ? '' : 'i');
+        const escaped = findVal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(escaped, flags);
+        result = text.replace(re, (m) => { count++; return replaceVal; });
+      }
+      document.getElementById('output').value = result;
+      showMsg(`替换完成，共替换 ${count} 处`);
+    } catch(e) {
+      showMsg('正则表达式错误：' + e.message, true);
+    }
+  }
+  function clearAll() {
+    document.getElementById('input').value = '';
+    document.getElementById('output').value = '';
+    document.getElementById('find').value = '';
+    document.getElementById('replace').value = '';
+    showMsg('');
+  }
+  function copyOutput() {
+    const v = document.getElementById('output').value;
+    if (!v) { showMsg('没有可复制的内容'); return; }
+    navigator.clipboard.writeText(v).then(() => showMsg('已复制到剪贴板'));
+  }
+  function showMsg(m, isErr) {
+    const el = document.getElementById('msg');
+    el.textContent = m;
+    el.className = 'msg' + (isErr ? ' error' : '');
+  }
+</script>
+</body>
+</html>

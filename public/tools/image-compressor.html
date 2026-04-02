@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片压缩工具</title>
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/upng-js@2.1.0/UPNG.js"></script>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h2 class="title">🖼️ 图片压缩工具</h2>
+
+    <div class="upload-area" id="uploadArea">
+      <div class="upload-icon">📁</div>
+      <div class="upload-text">点击选择图片或拖拽到此处</div>
+      <div class="upload-hint">支持 JPG、PNG、WebP 格式</div>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" style="display:none">
+    </div>
+
+    <div class="options" id="options" style="display:none">
+      <div class="option-row">
+        <label>输出格式</label>
+        <div class="format-btns">
+          <button class="fmt-btn active" data-fmt="jpeg">JPEG</button>
+          <button class="fmt-btn" data-fmt="png">PNG</button>
+          <button class="fmt-btn" data-fmt="webp">WebP</button>
+        </div>
+      </div>
+      <div class="option-row" id="qualityRow">
+        <label>压缩质量 <span id="qualityVal">80</span>%</label>
+        <input type="range" id="quality" min="1" max="100" value="80">
+      </div>
+      <div class="option-row">
+        <label>最大宽度（0=不限）</label>
+        <input type="number" id="maxWidth" value="0" min="0" max="9999" class="num-input">
+      </div>
+      <button class="btn-primary" id="compressBtn">开始压缩</button>
+    </div>
+
+    <div class="preview-area" id="previewArea" style="display:none">
+      <div class="preview-col">
+        <div class="preview-label">原图</div>
+        <img id="origImg" class="preview-img">
+        <div class="preview-info" id="origInfo"></div>
+      </div>
+      <div class="preview-col">
+        <div class="preview-label">压缩后</div>
+        <img id="compImg" class="preview-img">
+        <div class="preview-info" id="compInfo"></div>
+      </div>
+    </div>
+
+    <div class="btn-row" id="downloadRow" style="display:none">
+      <button class="btn-secondary" onclick="resetTool()">重新选择</button>
+      <button class="btn-primary" id="downloadBtn">下载压缩图片</button>
+    </div>
+
+    <div id="msg" class="msg"></div>
+  </div>
+</div>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; }
+  .container { max-width: 860px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .title { font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; }
+  .upload-area { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+  .upload-area:hover, .upload-area.drag-over { border-color: #10b981; background: #f0fdf4; }
+  .upload-icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .upload-text { font-size: 1rem; font-weight: 600; color: #334155; margin-bottom: 6px; }
+  .upload-hint { font-size: 0.82rem; color: #94a3b8; }
+  .options { margin-top: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .option-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .option-row label { font-size: 0.88rem; font-weight: 600; color: #475569; min-width: 140px; }
+  .format-btns { display: flex; gap: 8px; }
+  .fmt-btn { padding: 6px 16px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #f8fafc; color: #475569; font-size: 0.88rem; cursor: pointer; transition: all 0.2s; }
+  .fmt-btn.active { background: #10b981; color: #fff; border-color: #10b981; }
+  input[type="range"] { flex: 1; min-width: 160px; accent-color: #10b981; }
+  .num-input { width: 100px; padding: 6px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; outline: none; }
+  .num-input:focus { border-color: #10b981; }
+  .btn-primary { background: #10b981; color: #fff; border: none; border-radius: 8px; padding: 10px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #059669; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px 20px; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .preview-area { display: flex; gap: 16px; margin-top: 20px; }
+  .preview-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .preview-label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  .preview-img { max-width: 100%; max-height: 260px; border-radius: 8px; border: 1.5px solid #e2e8f0; object-fit: contain; background: #f1f5f9; }
+  .preview-info { font-size: 0.8rem; color: #64748b; text-align: center; }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .msg { margin-top: 12px; font-size: 0.85rem; min-height: 20px; color: #10b981; }
+  .msg.error { color: #ef4444; }
+  @media (max-width: 600px) { .preview-area { flex-direction: column; } .option-row label { min-width: unset; } }
+</style>
+
+<script>
+  var origFile = null;
+  var compressedBlob = null;
+  var selectedFmt = 'jpeg';
+
+  var uploadArea = document.getElementById('uploadArea');
+  var fileInput = document.getElementById('fileInput');
+
+  uploadArea.addEventListener('click', function() { fileInput.click(); });
+  fileInput.addEventListener('change', function() {
+    if (fileInput.files[0]) loadFile(fileInput.files[0]);
+  });
+  uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+  uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('drag-over'); });
+  uploadArea.addEventListener('drop', function(e) {
+    e.preventDefault(); uploadArea.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+
+  document.querySelectorAll('.fmt-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.fmt-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      selectedFmt = btn.dataset.fmt;
+      document.getElementById('qualityRow').style.display = selectedFmt === 'png' ? 'none' : 'flex';
+    });
+  });
+
+  document.getElementById('quality').addEventListener('input', function() {
+    document.getElementById('qualityVal').textContent = this.value;
+  });
+
+  document.getElementById('compressBtn').addEventListener('click', doCompress);
+  document.getElementById('downloadBtn').addEventListener('click', doDownload);
+
+  function loadFile(file) {
+    if (!file.type.startsWith('image/')) { showMsg('请选择图片文件', true); return; }
+    origFile = file;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('origImg').src = e.target.result;
+      document.getElementById('origInfo').textContent = file.name + ' · ' + formatSize(file.size);
+      document.getElementById('options').style.display = 'flex';
+      document.getElementById('previewArea').style.display = 'none';
+      document.getElementById('downloadRow').style.display = 'none';
+      showMsg('');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function doCompress() {
+    if (!origFile) { showMsg('请先选择图片', true); return; }
+    showMsg('压缩中...');
+    var quality = parseInt(document.getElementById('quality').value) / 100;
+    var maxWidth = parseInt(document.getElementById('maxWidth').value) || 0;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var w = img.width, h = img.height;
+        if (maxWidth > 0 && w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        if (selectedFmt === 'png') {
+          canvas.toBlob(function(blob) { finishCompress(blob, 'png'); }, 'image/png');
+        } else if (selectedFmt === 'webp') {
+          canvas.toBlob(function(blob) { finishCompress(blob, 'webp'); }, 'image/webp', quality);
+        } else {
+          canvas.toBlob(function(blob) { finishCompress(blob, 'jpeg'); }, 'image/jpeg', quality);
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(origFile);
+  }
+
+  function finishCompress(blob, fmt) {
+    compressedBlob = blob;
+    var url = URL.createObjectURL(blob);
+    document.getElementById('compImg').src = url;
+    var ratio = ((1 - blob.size / origFile.size) * 100).toFixed(1);
+    document.getElementById('compInfo').textContent = formatSize(blob.size) + ' · 压缩了 ' + ratio + '%';
+    document.getElementById('previewArea').style.display = 'flex';
+    document.getElementById('downloadRow').style.display = 'flex';
+    showMsg('压缩完成');
+  }
+
+  function doDownload() {
+    if (!compressedBlob) return;
+    var ext = selectedFmt === 'jpeg' ? 'jpg' : selectedFmt;
+    var origName = origFile.name.replace(/\.[^.]+$/, '');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(compressedBlob);
+    a.download = origName + '-compressed.' + ext;
+    a.click();
+  }
+
+  function resetTool() {
+    origFile = null; compressedBlob = null;
+    fileInput.value = '';
+    document.getElementById('options').style.display = 'none';
+    document.getElementById('previewArea').style.display = 'none';
+    document.getElementById('downloadRow').style.display = 'none';
+    showMsg('');
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  function showMsg(m, isErr) {
+    var el = document.getElementById('msg');
+    el.textContent = m;
+    el.className = 'msg' + (isErr ? ' error' : '');
+  }
+</script>
+</body>
+</html>

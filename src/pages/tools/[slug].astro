@@ -1,14 +1,13 @@
 ---
 import { getCollection } from "astro:content";
 import EntryLayout from "@components/tools/EntryLayout.astro";
-import { slugify } from "@lib/textConverter";
 
 export async function getStaticPaths() {
   const allTools = await getCollection("tools");
   return allTools
-    .filter((entry) => entry.data.file)
+    .filter((entry) => entry.data.file && entry.data.slug)
     .map((entry) => ({
-      params: { slug: slugify(entry.data.title) },
+      params: { slug: entry.data.slug },
       props: { entry },
     }));
 }
