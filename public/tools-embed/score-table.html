@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>拉小分表</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 控制区 -->
+  <div class="controls">
+
+    <div class="field">
+      <label>选择 Excel 文件（.xlsx / .xls / .csv）</label>
+      <div class="file-drop" id="fileDrop">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+        <span id="fileLabel">📁 点击选择文件或拖放至此</span>
+      </div>
+      <div id="fileInfo" class="file-info" style="display:none"></div>
+    </div>
+
+    <div class="row-2">
+      <div class="field">
+        <label>忽略列索引（逗号分隔，1-based）</label>
+        <input type="text" id="ignoreCols" value="1,2,3,8,9" placeholder="例如: 1,2,3,8,9">
+      </div>
+      <div class="field">
+        <label>总分阈值（低于此值的行将被过滤）</label>
+        <input type="number" id="threshold" value="10" min="0" step="1">
+      </div>
+    </div>
+
+    <div class="row-2">
+      <div class="field">
+        <label>分组列</label>
+        <select id="groupCol"><option value="">— 请先加载文件 —</option></select>
+      </div>
+      <div class="field check-field">
+        <label><input type="checkbox" id="hasHeader" checked> 第一行为表头</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>班级颜色分组（JSON 数组，每个子数组为一组）</label>
+      <input type="text" id="colorGroups"
+        value="[[1,2,30,31],[3,4,5,6,32,33,34,35],[7,8,9,10,36,37,38,39],[12,13,14,42,43,44],[23,24,41]]"
+        placeholder="例如: [[1,2],[3,4,5,6]]">
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">就绪</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-primary" onclick="processData()" id="processBtn" disabled>⚡ 开始处理</button>
+      <button class="btn-danger" onclick="resetAll()">🔄 重置</button>
+    </div>
+
+    <div class="export-row" id="exportRow" style="display:none">
+      <button class="btn-success" onclick="exportToExcel()">📄 导出 Excel</button>
+      <button class="btn-info" onclick="exportToImage()">🖼️ 导出图片</button>
+    </div>
+
+  </div>
+
+  <!-- 结果区 -->
+  <div class="result-wrap" id="resultWrap" style="display:none">
+    <div class="stats-row" id="statsRow"></div>
+    <div class="table-scroll">
+      <table id="resultTable" class="data-table"></table>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background: #f3f4f6; padding: 20px; }
+  .wrap { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+  /* Controls */
+  .controls { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 0.88rem; font-weight: 600; color: #374151; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .check-field { justify-content: flex-end; }
+  .check-field label { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
+  input[type="text"], input[type="number"], select {
+    padding: 9px 12px; border: 1.5px solid #d1d5db; border-radius: 8px;
+    font-size: 0.9rem; outline: none; transition: border-color 0.2s; background: #f9fafb;
+  }
+  input:focus, select:focus { border-color: #667eea; background: #fff; }
+
+  /* File drop */
+  .file-drop { position: relative; border: 2px dashed #667eea; border-radius: 8px; padding: 14px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fff; }
+  .file-drop:hover, .file-drop.drag-over { background: #f0f2ff; border-color: #764ba2; }
+  .file-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  #fileLabel { color: #667eea; font-weight: 600; font-size: 0.9rem; pointer-events: none; }
+  .file-info { background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; color: #374151; line-height: 1.7; }
+
+  /* Progress */
+  .progress-wrap { display: flex; align-items: center; gap: 12px; }
+  .progress-bar { flex: 1; height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); width: 0%; transition: width 0.3s; }
+  .progress-text { font-size: 0.82rem; color: #6b7280; min-width: 60px; text-align: right; }
+
+  /* Buttons */
+  .btn-row, .export-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  button { padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.4); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-danger { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; }
+  .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(231,76,60,0.4); }
+  .btn-success { background: linear-gradient(135deg, #20c997, #099268); color: #fff; }
+  .btn-success:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(32,201,151,0.4); }
+  .btn-info { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; }
+  .btn-info:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
+
+  /* Result */
+  .result-wrap { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 20px; }
+  .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat-card { background: #f8f9fa; border-radius: 8px; padding: 14px 20px; text-align: center; flex: 1; min-width: 120px; }
+  .stat-card .s-label { font-size: 0.78rem; color: #6b7280; margin-bottom: 4px; }
+  .stat-card .s-val { font-size: 1.5rem; font-weight: 700; color: #374151; }
+  .table-scroll { overflow: auto; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .data-table th { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; position: sticky; top: 0; z-index: 5; white-space: nowrap; }
+  .data-table td { padding: 9px 14px; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+  .data-table tr:hover td { background-color: #f9fafb !important; }
+
+  /* Row colors */
+  .rc-0 { background-color: #ffe6e6 !important; }
+  .rc-1 { background-color: #e6ffe6 !important; }
+  .rc-2 { background-color: #e6e6ff !important; }
+  .rc-3 { background-color: #ffffe6 !important; }
+  .rc-4 { background-color: #ffe6ff !important; }
+  .rc-5 { background-color: #e6ffff !important; }
+  .rc-6 { background-color: #ffe9d6 !important; }
+  .rc-7 { background-color: #e6d6ff !important; }
+
+  @media (max-width: 640px) {
+    .row-2 { grid-template-columns: 1fr; }
+    .stats-row { flex-direction: column; }
+  }
+</style>
+
+<script>
+  let originalData = null;
+  let processedData = null;
+  let colorGroups = [];
+  let currentGroupCol = null;
+  let currentFileName = null;
+
+  const COLOR_CLASSES = ['rc-0','rc-1','rc-2','rc-3','rc-4','rc-5','rc-6','rc-7'];
+  const EXCEL_COLORS = ['FFFFC8C8','FFC8FFC8','FFC8C8FF','FFFFFFC8','FFFFC8FF','FFC8FFFF','FFFFDCC8','FFDCC8FF'];
+
+  // ── 进度 ──
+  function setProgress(pct, text) {
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressText').textContent = text || pct + '%';
+  }
+
+  // ── 文件选择 ──
+  document.getElementById('fileInput').addEventListener('change', function() {
+    if (this.files.length) loadFile(this.files[0]);
+  });
+
+  // 拖放
+  const fileDrop = document.getElementById('fileDrop');
+  fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.classList.add('drag-over'); });
+  fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('drag-over'));
+  fileDrop.addEventListener('drop', e => {
+    e.preventDefault(); fileDrop.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) { document.getElementById('fileInput').files = e.dataTransfer.files; loadFile(f); }
+  });
+
+  // 表头复选框变化时重新加载
+  document.getElementById('hasHeader').addEventListener('change', function() {
+    const fi = document.getElementById('fileInput');
+    if (fi.files.length) loadFile(fi.files[0]);
+  });
+
+  function loadFile(file) {
+    currentFileName = file.name;
+    document.getElementById('fileLabel').textContent = '📄 ' + file.name;
+    setProgress(10, '读取文件中...');
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        const hasHeader = document.getElementById('hasHeader').checked;
+
+        if (raw.length < (hasHeader ? 2 : 1)) {
+          alert('数据行数不足，请检查文件格式'); setProgress(0, '读取失败'); return;
+        }
+
+        const headers = hasHeader ? raw[0] : raw[0].map((_, i) => '列' + (i + 1));
+        const rows = hasHeader ? raw.slice(1) : raw;
+
+        originalData = rows.map(row => {
+          const obj = {};
+          headers.forEach((h, i) => { obj[h || ('列' + i)] = row[i]; });
+          return obj;
+        });
+
+        document.getElementById('fileInfo').style.display = 'block';
+        document.getElementById('fileInfo').innerHTML =
+          `<strong>📄 ${file.name}</strong><br>` +
+          `大小：${(file.size / 1024).toFixed(1)} KB　` +
+          `行数：${originalData.length}　列数：${Object.keys(originalData[0]).length}`;
+
+        setProgress(30, '文件加载完成');
+        updateGroupSelect();
+        document.getElementById('processBtn').disabled = false;
+      } catch (err) {
+        alert('文件读取失败：' + err.message); setProgress(0, '读取失败');
+      }
+    };
+    reader.onerror = () => { alert('文件读取错误'); setProgress(0, '读取错误'); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function updateGroupSelect() {
+    if (!originalData) return;
+    const sel = document.getElementById('groupCol');
+    sel.innerHTML = '';
+    Object.keys(originalData[0]).forEach(h => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = h;
+      sel.appendChild(opt);
+    });
+    // 自动选"班级"相关列
+    const kw = ['班级', '班', 'class', 'Class'];
+    for (let i = 0; i < sel.options.length; i++) {
+      if (kw.some(k => sel.options[i].value.toString().includes(k))) {
+        sel.selectedIndex = i; break;
+      }
+    }
+  }
+
+  // ── 解析颜色分组 ──
+  function parseColorGroups() {
+    const raw = document.getElementById('colorGroups').value.trim();
+    if (!raw) return [];
+    try {
+      const p = JSON.parse(raw);
+      if (Array.isArray(p)) return p.filter(Array.isArray);
+    } catch (_) {}
+    try {
+      if (raw.includes('],[')) {
+        return raw.split('],[').map(g =>
+          g.replace(/[\[\]]/g, '').split(',').map(Number).filter(n => !isNaN(n))
+        ).filter(g => g.length);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  function getColorIndex(val) {
+    if (!colorGroups.length) return -1;
+    let n = typeof val === 'number' ? val : parseInt(String(val).match(/\d+/)?.[0]);
+    if (isNaN(n)) return -1;
+    return colorGroups.findIndex(g => g.includes(n));
+  }
+
+  // ── 处理数据 ──
+  function processData() {
+    if (!originalData) { alert('请先选择文件'); return; }
+    setProgress(0, '开始处理...');
+    try {
+      // 忽略列
+      const ignoreCols = document.getElementById('ignoreCols').value
+        .split(',').map(s => parseInt(s.trim()) - 1).filter(n => n >= 0);
+      const threshold = parseFloat(document.getElementById('threshold').value) || 10;
+      const groupCol = document.getElementById('groupCol').value;
+      colorGroups = parseColorGroups();
+
+      if (!groupCol) { alert('请选择分组列'); return; }
+
+      setProgress(20, '数据清洗中...');
+      let data = originalData.map(row => Object.assign({}, row));
+
+      // 移除忽略列
+      if (ignoreCols.length) {
+        const allKeys = Object.keys(data[0]);
+        const keepKeys = allKeys.filter((_, i) => !ignoreCols.includes(i));
+        data = data.map(row => { const o = {}; keepKeys.forEach(k => o[k] = row[k]); return o; });
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(data[0], groupCol)) {
+        alert(`分组列 "${groupCol}" 不存在`); return;
+      }
+
+      setProgress(40, '过滤低分行...');
+      const scoreCol = Object.keys(data[0]).find(c => c && c.toString().includes('总分'));
+      if (scoreCol) {
+        data = data.filter(row => { const s = parseFloat(row[scoreCol]); return !isNaN(s) && s >= threshold; });
+      }
+
+      setProgress(60, '分类汇总中...');
+      const numCols = Object.keys(data[0]).filter(c => {
+        if (c === groupCol) return false;
+        const v = data[0][c];
+        return typeof v === 'number' || (!isNaN(parseFloat(v)) && v !== null && v !== '');
+      });
+
+      if (!numCols.length) { alert('没有找到数值列进行汇总'); return; }
+
+      const groups = {};
+      data.forEach(row => {
+        const key = row[groupCol];
+        if (!groups[key]) { groups[key] = { count: 0, sums: {} }; numCols.forEach(c => groups[key].sums[c] = 0); }
+        groups[key].count++;
+        numCols.forEach(c => { groups[key].sums[c] += parseFloat(row[c]) || 0; });
+      });
+
+      processedData = Object.entries(groups).map(([key, g]) => {
+        const r = { [groupCol]: key };
+        numCols.forEach(c => { r[c] = (g.sums[c] / g.count).toFixed(2); });
+        return r;
+      });
+
+      processedData.sort((a, b) => {
+        const an = typeof a[groupCol] === 'number' ? a[groupCol] : parseInt(String(a[groupCol]).match(/\d+/)?.[0]);
+        const bn = typeof b[groupCol] === 'number' ? b[groupCol] : parseInt(String(b[groupCol]).match(/\d+/)?.[0]);
+        if (!isNaN(an) && !isNaN(bn)) return an - bn;
+        return String(a[groupCol]).localeCompare(String(b[groupCol]));
+      });
+
+      currentGroupCol = groupCol;
+      setProgress(80, '生成结果...');
+      renderResult();
+      setProgress(100, '处理完成');
+      document.getElementById('exportRow').style.display = 'flex';
+    } catch (err) {
+      alert('处理出错：' + err.message); setProgress(0, '处理失败');
+    }
+  }
+
+  // ── 渲染结果 ──
+  function renderResult() {
+    const wrap = document.getElementById('resultWrap');
+    const statsRow = document.getElementById('statsRow');
+    const table = document.getElementById('resultTable');
+    table.innerHTML = '';
+    statsRow.innerHTML = [
+      { label: '分组数量', val: processedData.length },
+      { label: '数据列数', val: Object.keys(processedData[0]).length },
+      { label: '颜色分组数', val: colorGroups.length },
+    ].map(s => `<div class="stat-card"><div class="s-label">${s.label}</div><div class="s-val">${s.val}</div></div>`).join('');
+
+    const headers = Object.keys(processedData[0]);
+    const thead = table.createTHead();
+    const hr = thead.insertRow();
+    headers.forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); });
+
+    const tbody = table.createTBody();
+    processedData.forEach(row => {
+      const tr = tbody.insertRow();
+      const ci = getColorIndex(row[currentGroupCol]);
+      headers.forEach(h => {
+        const td = tr.insertCell();
+        td.textContent = row[h] ?? '';
+        if (ci >= 0) td.className = COLOR_CLASSES[ci % COLOR_CLASSES.length];
+        if (!isNaN(parseFloat(row[h]))) td.style.textAlign = 'right';
+      });
+    });
+
+    wrap.style.display = 'block';
+  }
+
+  // ── 导出 Excel ──
+  function exportToExcel() {
+    if (!processedData) { alert('没有数据可导出'); return; }
+    const wb = XLSX.utils.book_new();
+    const wsData = [Object.keys(processedData[0]), ...processedData.map(r => Object.values(r))];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // 填充颜色
+    const keys = Object.keys(processedData[0]);
+    processedData.forEach((row, ri) => {
+      const ci = getColorIndex(row[currentGroupCol]);
+      if (ci < 0) return;
+      const color = EXCEL_COLORS[ci % EXCEL_COLORS.length];
+      keys.forEach((_, ki) => {
+        const ref = XLSX.utils.encode_cell({ r: ri + 1, c: ki });
+        if (!ws[ref]) ws[ref] = { t: 's', v: row[keys[ki]] };
+        ws[ref].s = { fill: { fgColor: { rgb: color } } };
+      });
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, '处理结果');
+    const base = (currentFileName || '处理结果').replace(/\.[^/.]+$/, '');
+    const ts = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    XLSX.writeFile(wb, `${base}_${ts}.xlsx`);
+  }
+
+  // ── 导出图片 ──
+  function exportToImage() {
+    if (!processedData) { alert('没有数据可导出'); return; }
+    html2canvas(document.getElementById('resultTable')).then(canvas => {
+      const a = document.createElement('a');
+      const base = (currentFileName || '处理结果').replace(/\.[^/.]+$/, '');
+      const ts = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      a.download = `${base}_${ts}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    });
+  }
+
+  // ── 重置 ──
+  function resetAll() {
+    originalData = processedData = null;
+    colorGroups = []; currentGroupCol = currentFileName = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileLabel').textContent = '📁 点击选择文件或拖放至此';
+    document.getElementById('fileInfo').style.display = 'none';
+    document.getElementById('groupCol').innerHTML = '<option value="">— 请先加载文件 —</option>';
+    document.getElementById('processBtn').disabled = true;
+    document.getElementById('exportRow').style.display = 'none';
+    document.getElementById('resultWrap').style.display = 'none';
+    document.getElementById('resultTable').innerHTML = '';
+    document.getElementById('statsRow').innerHTML = '';
+    setProgress(0, '就绪');
+  }
+</script>
+</body>
+</html>
