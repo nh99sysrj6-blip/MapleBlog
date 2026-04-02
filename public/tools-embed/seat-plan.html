@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>座位随机分配</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    html, body { background: transparent !important; min-height: unset !important; }
+  </style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="grid">
+    <!-- 左：导入名单 -->
+    <div class="panel">
+      <h2>1. 导入学生名单</h2>
+      <div class="field">
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv">
+        <div class="file-hint">
+          文件需包含至少两列，第一列为姓名，第二列为性别（男/女）<br>
+          示例：姓名,性别 / 张三,男 / 李四,女
+        </div>
+      </div>
+      <div class="row">
+        <label class="check-label"><input id="hasHeader" type="checkbox" checked> 首行为表头</label>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>姓名列索引</label>
+          <input id="nameCol" type="number" min="0" value="0">
+        </div>
+        <div class="field">
+          <label>性别列索引</label>
+          <input id="genderCol" type="number" min="0" value="1">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="loadBtn">读取名单</button>
+        <button class="btn-ghost" id="clearBtn">清空名单</button>
+      </div>
+      <div class="badges">
+        <span class="badge">已导入：<strong id="studentCount">0</strong> 人</span>
+        <span class="badge male">男生：<strong id="maleCount">0</strong></span>
+        <span class="badge female">女生：<strong id="femaleCount">0</strong></span>
+      </div>
+      <div class="list" id="studentList">还没有导入学生</div>
+    </div>
+
+    <!-- 右：设置座位 -->
+    <div class="panel">
+      <h2>2. 设置座位分布</h2>
+      <div class="row-3">
+        <div class="field">
+          <label>行数</label>
+          <input id="rowsInput" type="number" min="1" max="20" value="5">
+        </div>
+        <div class="field">
+          <label>列数</label>
+          <input id="colsInput" type="number" min="1" max="20" value="6">
+        </div>
+        <div class="field">
+          <label>讲台标签</label>
+          <input id="frontLabel" type="text" value="讲台在上方">
+        </div>
+      </div>
+      <div class="row slider-row">
+        <label>座位大小</label>
+        <input id="seatSizeInput" type="range" min="40" max="140" step="4" value="72">
+        <span class="badge" id="seatSizeValue">72px</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn-dark" id="buildBtn">生成座位</button>
+        <button class="btn-ghost" id="toggleAllBtn">全部可用</button>
+      </div>
+      <div class="row">
+        <label class="check-label">
+          <input id="noMixedGender" type="checkbox" checked>
+          禁止男女同桌（左右座位）
+        </label>
+      </div>
+      <div class="badges">
+        <span class="badge">可用座位：<strong id="seatCount">0</strong></span>
+        <span class="badge">待分配：<strong id="seatStudentCount">0</strong> 人</span>
+      </div>
+      <p class="muted">点击座位可启用/禁用；禁用座位不参与分配。</p>
+      <div class="stage-wrap">
+        <div id="seatStage" class="seat-stage">
+          <div id="frontLabelView" class="stage-label">讲台在上方</div>
+          <div id="seatGrid" class="seat-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分配区 -->
+  <div class="panel">
+    <h2>3. 随机分配</h2>
+    <div class="btn-row">
+      <button class="btn-primary" id="assignBtn">随机分配</button>
+      <button class="btn-ghost" id="shuffleBtn">重新随机</button>
+      <button class="btn-ghost" id="resetAssignBtn">清空分配</button>
+      <button class="btn-dark" id="exportBtn">导出 PNG</button>
+      <button class="btn-ghost" id="printBtn">打印</button>
+    </div>
+    <p class="muted" id="assignHint">需要先导入名单并设置座位</p>
+  </div>
+
+</div>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: #f3f4f6; padding: 20px; color: #1f2328; }
+  .wrap { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+
+  .grid { display: grid; grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 1.4fr); gap: 18px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel { background: #fff; border: 1px solid #d7dbe2; border-radius: 16px; padding: 20px; box-shadow: 0 4px 16px rgba(18,30,57,0.07); }
+  .panel h2 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; color: #1f2328; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  label { font-size: 0.82rem; color: #5b5f6a; }
+  input[type="number"], input[type="text"] {
+    padding: 9px 12px; border: 1px solid #d7dbe2; border-radius: 10px;
+    font-size: 0.9rem; outline: none; transition: border-color 0.2s; background: #f9fafb; width: 100%;
+  }
+  input:focus { border-color: #1f6feb; background: #fff; }
+  input[type="file"] { border: 1px dashed #d7dbe2; padding: 10px 12px; border-radius: 10px; background: #fff; font-size: 0.85rem; width: 100%; cursor: pointer; }
+  .file-hint { font-size: 0.78rem; color: #5b5f6a; line-height: 1.5; margin-top: 4px; }
+
+  .row { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 10px; margin-bottom: 12px; }
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .slider-row label { white-space: nowrap; font-size: 0.85rem; color: #5b5f6a; }
+  .slider-row input[type="range"] { flex: 1; accent-color: #1f6feb; }
+  .check-label { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #1f2328; cursor: pointer; }
+  .check-label input { width: auto; }
+
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  button { padding: 9px 16px; border: none; border-radius: 10px; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: #1f6feb; color: #fff; }
+  .btn-primary:hover { background: #1558c0; transform: translateY(-1px); }
+  .btn-dark { background: #1f2430; color: #fff; }
+  .btn-dark:hover { background: #111827; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; border: 1px solid #d7dbe2; color: #1f2328; }
+  .btn-ghost:hover { background: #f3f4f6; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 999px; background: #f3f4f6; border: 1px solid #d7dbe2; font-size: 0.8rem; color: #5b5f6a; }
+  .badge.male { background: rgba(77,171,247,0.1); border-color: #4dabf7; color: #1971c2; }
+  .badge.female { background: rgba(247,131,172,0.1); border-color: #f783ac; color: #c2255c; }
+
+  .list { max-height: 220px; overflow: auto; border: 1px solid #d7dbe2; border-radius: 10px; padding: 10px; background: #fff; font-size: 0.82rem; }
+  .list-item { padding: 5px 0; border-bottom: 1px dashed #e7eaf0; display: flex; justify-content: space-between; align-items: center; }
+  .list-item:last-child { border-bottom: none; }
+  .gender-tag { font-size: 0.75rem; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
+  .gender-tag.male { background: rgba(77,171,247,0.15); color: #1971c2; }
+  .gender-tag.female { background: rgba(247,131,172,0.15); color: #c2255c; }
+
+  .muted { font-size: 0.82rem; color: #5b5f6a; margin-bottom: 10px; }
+
+  /* Seat grid */
+  .stage-wrap { text-align: center; margin-top: 12px; overflow: auto; }
+  .seat-stage { display: inline-block; background: #fff; border-radius: 14px; border: 1px solid #d7dbe2; padding: 14px; }
+  .stage-label { text-align: center; font-size: 0.8rem; color: #5b5f6a; margin-bottom: 8px; letter-spacing: 0.04em; }
+  .seat-grid { display: inline-grid; gap: 6px; }
+  .seat {
+    position: relative; border-radius: 8px; border: 1px solid #d7dbe2;
+    min-height: var(--seat-size, 72px); background: #d9dee7;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(11px, calc(var(--seat-size, 72px) / 5.5), 14px);
+    text-align: center; padding: 5px; cursor: pointer;
+    transition: transform 0.1s, background 0.15s; user-select: none;
+  }
+  .seat.active { background: #fff; border-color: #b8c2d6; }
+  .seat.assigned { background: #1f6feb; color: #fff; border-color: #0e4fb3; }
+  .seat.assigned.male { background: #4dabf7; border-color: #339af0; }
+  .seat.assigned.female { background: #f783ac; border-color: #f06595; }
+  .seat span { display: block; font-weight: 600; line-height: 1.3; }
+  .seat.assigned span { font-weight: 700; font-size: clamp(13px, calc(var(--seat-size, 72px) / 4.2), 18px); }
+</style>
+
+<script>
+  const state = {
+    students: [],
+    seats: [],
+    assigned: new Map(),
+    rows: 5, cols: 6, seatSize: 72,
+    noMixedGender: true,
+  };
+
+  const $ = id => document.getElementById(id);
+
+  // ── 名单渲染 ──
+  function renderStudentList() {
+    $('studentCount').textContent = state.students.length;
+    $('seatStudentCount').textContent = state.students.length;
+    const male = state.students.filter(s => s.gender === '男').length;
+    $('maleCount').textContent = male;
+    $('femaleCount').textContent = state.students.length - male;
+    if (!state.students.length) { $('studentList').textContent = '还没有导入学生'; return; }
+    $('studentList').innerHTML = state.students.map((s, i) =>
+      `<div class="list-item"><span>${i+1}. ${s.name}</span><span class="gender-tag ${s.gender==='男'?'male':'female'}">${s.gender}</span></div>`
+    ).join('');
+  }
+
+  // ── 解析学生数据 ──
+  function parseStudents(rows) {
+    const start = $('hasHeader').checked ? 1 : 0;
+    const ni = Math.max(0, parseInt($('nameCol').value) || 0);
+    const gi = Math.max(0, parseInt($('genderCol').value) || 1);
+    state.students = [];
+    for (let i = start; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || !row.length) continue;
+      const name = String(row[ni] ?? '').trim();
+      if (!name) continue;
+      const gr = String(row[gi] ?? '').trim();
+      const gender = (gr === '女' || gr.toLowerCase() === 'female' || gr.toUpperCase() === 'F') ? '女' : '男';
+      state.students.push({ name, gender });
+    }
+    renderStudentList();
+    $('assignHint').textContent = '已导入名单，请设置座位并分配';
+  }
+
+  // ── 读取文件 ──
+  $('loadBtn').addEventListener('click', () => {
+    const file = $('fileInput').files[0];
+    if (!file) { alert('请先选择文件'); return; }
+    const ext = file.name.split('.').pop().toLowerCase();
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (ext === 'csv') {
+        const rows = e.target.result.split(/\r?\n/).map(line => {
+          const res = []; let inQ = false, cur = '';
+          for (const ch of line) {
+            if (ch === '"') { inQ = !inQ; }
+            else if (ch === ',' && !inQ) { res.push(cur.trim()); cur = ''; }
+            else cur += ch;
+          }
+          res.push(cur.trim()); return res;
+        }).filter(r => r.some(v => v));
+        parseStudents(rows);
+      } else {
+        const wb = XLSX.read(e.target.result, { type: ext === 'xls' ? 'binary' : 'array' });
+        parseStudents(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }));
+      }
+    };
+    if (ext === 'csv') reader.readAsText(file, 'utf-8');
+    else if (ext === 'xls') reader.readAsBinaryString(file);
+    else reader.readAsArrayBuffer(file);
+  });
+
+  $('clearBtn').addEventListener('click', () => { state.students = []; renderStudentList(); });
+
+  // ── 座位构建 ──
+  function buildSeats() {
+    state.seats = []; state.assigned.clear();
+    applySeatSize();
+    for (let r = 0; r < state.rows; r++)
+      for (let c = 0; c < state.cols; c++)
+        state.seats.push({ id: `${r+1}-${c+1}`, active: true, label: `第${r+1}行${c+1}列`, row: r+1, col: c+1 });
+    renderSeats(); updateCounts();
+    $('assignHint').textContent = '点击座位设置可用状态，然后进行随机分配';
+  }
+
+  function applySeatSize() {
+    state.seatSize = Math.max(40, Number($('seatSizeInput').value));
+    const grid = $('seatGrid');
+    grid.style.setProperty('--seat-size', state.seatSize + 'px');
+    grid.style.gridTemplateColumns = `repeat(${state.cols}, minmax(${state.seatSize}px, 1fr))`;
+    $('seatSizeValue').textContent = state.seatSize + 'px';
+  }
+
+  function renderSeats() {
+    const grid = $('seatGrid');
+    grid.innerHTML = '';
+    state.seats.forEach(seat => {
+      const node = document.createElement('div');
+      node.className = 'seat';
+      if (seat.active) node.classList.add('active');
+      const student = state.assigned.get(seat.id);
+      if (student) {
+        node.classList.add('assigned', student.gender === '男' ? 'male' : 'female');
+        node.innerHTML = `<span>${student.name}</span>`;
+      } else {
+        node.innerHTML = `<span>${seat.label}</span>`;
+      }
+      node.addEventListener('click', () => {
+        if (state.assigned.size) return;
+        seat.active = !seat.active;
+        renderSeats(); updateCounts();
+      });
+      grid.appendChild(node);
+    });
+  }
+
+  function updateCounts() {
+    $('seatCount').textContent = state.seats.filter(s => s.active).length;
+  }
+
+  $('buildBtn').addEventListener('click', () => {
+    state.rows = Math.max(1, Number($('rowsInput').value));
+    state.cols = Math.max(1, Number($('colsInput').value));
+    buildSeats();
+  });
+
+  $('frontLabel').addEventListener('input', e => {
+    $('frontLabelView').textContent = e.target.value.trim() || '讲台在上方';
+  });
+
+  $('seatSizeInput').addEventListener('input', applySeatSize);
+
+  $('toggleAllBtn').addEventListener('click', () => {
+    state.seats.forEach(s => s.active = true);
+    renderSeats(); updateCounts();
+  });
+
+  $('noMixedGender').addEventListener('change', e => { state.noMixedGender = e.target.checked; });
+
+  // ── 分配逻辑 ──
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function genderConflict(seatId, gender, assignment) {
+    const [row, col] = seatId.split('-').map(Number);
+    const left = assignment.get(`${row}-${col-1}`);
+    const right = assignment.get(`${row}-${col+1}`);
+    if (left && left.gender !== gender) return true;
+    if (right && right.gender !== gender) return true;
+    return false;
+  }
+
+  function assignSeats() {
+    if (!state.students.length) { alert('请先导入学生名单'); return; }
+    const activeSeats = state.seats.filter(s => s.active);
+    if (!activeSeats.length) { alert('请先设置可用座位'); return; }
+    if (state.students.length > activeSeats.length) { alert('学生人数超过可用座位数量'); return; }
+
+    if (!state.noMixedGender) {
+      const seats = shuffle(activeSeats);
+      const students = shuffle(state.students);
+      const assignment = new Map();
+      students.forEach((s, i) => assignment.set(seats[i].id, s));
+      state.assigned = assignment;
+      renderSeats();
+      $('assignHint').textContent = '已完成随机分配';
+      return;
+    }
+
+    const orderedSeats = [...activeSeats].sort((a, b) => a.row - b.row || a.col - b.col);
+    const MAX_ATTEMPTS = 200;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const students = shuffle(state.students);
+      const assignment = new Map();
+      const used = new Array(students.length).fill(false);
+
+      const backtrack = seatIdx => {
+        if (seatIdx === orderedSeats.length || assignment.size >= students.length) return true;
+        const seat = orderedSeats[seatIdx];
+        const order = shuffle([...Array(students.length).keys()].filter(i => !used[i]));
+        for (const i of order) {
+          if (!genderConflict(seat.id, students[i].gender, assignment)) {
+            assignment.set(seat.id, students[i]);
+            used[i] = true;
+            if (backtrack(seatIdx + 1)) return true;
+            assignment.delete(seat.id);
+            used[i] = false;
+          }
+        }
+        return false;
+      };
+
+      if (backtrack(0)) {
+        state.assigned = assignment;
+        renderSeats();
+        $('assignHint').textContent = '已完成分配（严格禁止男女同桌）';
+        return;
+      }
+    }
+
+    // 回退：尽力模式
+    const seats = shuffle(activeSeats);
+    const students = shuffle(state.students);
+    const assignment = new Map();
+    students.forEach((s, i) => assignment.set(seats[i].id, s));
+    state.assigned = assignment;
+    renderSeats();
+    $('assignHint').textContent = '⚠️ 当前男女比例或座位布局无法完全避免同桌，已尽力分配';
+  }
+
+  $('assignBtn').addEventListener('click', assignSeats);
+  $('shuffleBtn').addEventListener('click', assignSeats);
+  $('resetAssignBtn').addEventListener('click', () => {
+    state.assigned.clear(); renderSeats();
+    $('assignHint').textContent = '已清空分配';
+  });
+
+  $('exportBtn').addEventListener('click', async () => {
+    if (!state.seats.length) { alert('请先生成座位'); return; }
+    const canvas = await html2canvas($('seatStage'), { backgroundColor: '#ffffff', scale: 2 });
+    const a = document.createElement('a');
+    a.download = 'seat-plan.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  });
+
+  $('printBtn').addEventListener('click', async () => {
+    if (!state.seats.length) { alert('请先生成座位'); return; }
+    const canvas = await html2canvas($('seatStage'), { backgroundColor: '#ffffff', scale: 2 });
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!doctype html><html><head><title>打印座位</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;background:#fff;"><img src="${canvas.toDataURL('image/png')}" style="max-width:100%;height:auto;"></body></html>`);
+    win.document.close(); win.focus(); win.print();
+  });
+
+  // 初始化
+  $('noMixedGender').checked = state.noMixedGender;
+  buildSeats();
+</script>
+</body>
+</html>
