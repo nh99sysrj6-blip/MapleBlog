@@ -181,11 +181,6 @@ const socialConfig = defineCollection({
 });
 
 
-const terms = defineCollection({
-  loader: glob({ pattern: "-index.{md,mdx}", base: "./src/content/terms" }),
-  schema: baseContent,
-});
-
 // 工具集合
 const tools = defineCollection({
   loader: glob({ pattern: "**\/[^_]*.{md,mdx}", base: "./src/content/tools" }),
@@ -205,6 +200,5 @@ export const collections = {
   pages,
   home,
   social: socialConfig,
-  terms,
   tools,
 };

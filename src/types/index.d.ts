@@ -32,7 +32,6 @@ export type SearchableEntry =
   | PoetryEntry
   | PortfolioEntry
   | RecipesEntry
-  | TermsEntry
   | ToolsEntry;
   
 export type SocialLinks = {
