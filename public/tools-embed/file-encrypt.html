@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文件加密工具</title>
+  <script src="https://cdn.jsdelivr.net/npm/libsodium-wrappers@0.7.13/dist/modules/libsodium-wrappers.js"></script>
+  <style>html, body { background: transparent !important; min-height: unset !important; }</style>
+  <script>
+    (function() {
+      function reportHeight() {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        window.parent.postMessage({ type: 'tool-height', height: h }, '*');
+      }
+      window.addEventListener('load', reportHeight);
+      window.addEventListener('resize', reportHeight);
+      var mo = new MutationObserver(reportHeight);
+      document.addEventListener('DOMContentLoaded', function() {
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 标签页 -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('enc')">🔒 加密</button>
+    <button class="tab" onclick="switchTab('dec')">🔓 解密</button>
+    <button class="tab" onclick="switchTab('keys')">🔑 生成密钥对</button>
+  </div>
+
+  <!-- 加密面板 -->
+  <div id="panel-enc" class="panel">
+    <div class="section">
+      <div class="field">
+        <label>选择文件</label>
+        <div class="drop-zone" id="enc-drop">
+          <input type="file" id="enc-file" style="display:none">
+          <div id="enc-file-info" class="drop-hint">📁 点击选择或拖放文件（最大 1 GB）</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>加密方式</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="enc-method" value="password" checked onchange="encMethodChange()"> 密码加密
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="enc-method" value="keypair" onchange="encMethodChange()"> 公钥加密
+          </label>
+        </div>
+      </div>
+
+      <!-- 密码模式 -->
+      <div id="enc-password-section">
+        <div class="field">
+          <label>密码（至少 12 位）</label>
+          <div class="input-row">
+            <input type="password" id="enc-password" placeholder="输入加密密码" oninput="checkEncPasswordStrength()">
+            <button class="btn-icon" onclick="togglePwd('enc-password')" title="显示/隐藏">👁</button>
+            <button class="btn-icon" onclick="genPassword()" title="随机生成">🎲</button>
+          </div>
+          <div id="enc-pwd-strength" class="strength-bar-wrap" style="display:none">
+            <div class="strength-bar"><div id="enc-pwd-fill" class="strength-fill"></div></div>
+            <span id="enc-pwd-label" class="strength-label"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 公钥模式 -->
+      <div id="enc-keypair-section" style="display:none">
+        <div class="field">
+          <label>接收方公钥</label>
+          <div class="input-row">
+            <input type="text" id="enc-recipient-pk" placeholder="粘贴接收方公钥（Base64）">
+            <label class="btn-icon" title="从文件加载">📎<input type="file" accept=".public,.txt" style="display:none" onchange="loadKeyFile(this,'enc-recipient-pk')"></label>
+          </div>
+        </div>
+        <div class="field">
+          <label>你的私钥</label>
+          <div class="input-row">
+            <input type="password" id="enc-sender-sk" placeholder="粘贴你的私钥（Base64）">
+            <button class="btn-icon" onclick="togglePwd('enc-sender-sk')" title="显示/隐藏">👁</button>
+            <label class="btn-icon" title="从文件加载">📎<input type="file" accept=".private,.txt" style="display:none" onchange="loadKeyFile(this,'enc-sender-sk')"></label>
+          </div>
+        </div>
+      </div>
+
+      <div id="enc-error" class="alert error" style="display:none"></div>
+      <div id="enc-progress-wrap" style="display:none">
+        <div class="progress-bar"><div id="enc-progress-fill" class="progress-fill"></div></div>
+        <div id="enc-progress-text" class="progress-text">加密中...</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="enc-btn" onclick="startEncrypt()">🔒 开始加密</button>
+        <button class="btn-ghost" onclick="resetEnc()">重置</button>
+      </div>
+
+      <div id="enc-result" style="display:none">
+        <div class="alert success">✅ 加密完成！</div>
+        <button class="btn-primary" onclick="downloadEncFile()">⬇ 下载加密文件</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 解密面板 -->
+  <div id="panel-dec" class="panel" style="display:none">
+    <div class="section">
+      <div class="field">
+        <label>选择加密文件（.enc）</label>
+        <div class="drop-zone" id="dec-drop">
+          <input type="file" id="dec-file" style="display:none">
+          <div id="dec-file-info" class="drop-hint">📁 点击选择或拖放 .enc 文件</div>
+        </div>
+      </div>
+
+      <div id="dec-method-info" class="alert info" style="display:none"></div>
+
+      <!-- 密码模式 -->
+      <div id="dec-password-section" style="display:none">
+        <div class="field">
+          <label>密码</label>
+          <div class="input-row">
+            <input type="password" id="dec-password" placeholder="输入解密密码">
+            <button class="btn-icon" onclick="togglePwd('dec-password')" title="显示/隐藏">👁</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 公钥模式 -->
+      <div id="dec-keypair-section" style="display:none">
+        <div class="field">
+          <label>发送方公钥</label>
+          <div class="input-row">
+            <input type="text" id="dec-sender-pk" placeholder="粘贴发送方公钥（Base64）">
+            <label class="btn-icon" title="从文件加载">📎<input type="file" accept=".public,.txt" style="display:none" onchange="loadKeyFile(this,'dec-sender-pk')"></label>
+          </div>
+        </div>
+        <div class="field">
+          <label>你的私钥</label>
+          <div class="input-row">
+            <input type="password" id="dec-recipient-sk" placeholder="粘贴你的私钥（Base64）">
+            <button class="btn-icon" onclick="togglePwd('dec-recipient-sk')" title="显示/隐藏">👁</button>
+            <label class="btn-icon" title="从文件加载">📎<input type="file" accept=".private,.txt" style="display:none" onchange="loadKeyFile(this,'dec-recipient-sk')"></label>
+          </div>
+        </div>
+      </div>
+
+      <div id="dec-error" class="alert error" style="display:none"></div>
+      <div id="dec-progress-wrap" style="display:none">
+        <div class="progress-bar"><div id="dec-progress-fill" class="progress-fill"></div></div>
+        <div id="dec-progress-text" class="progress-text">解密中...</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="dec-btn" onclick="startDecrypt()">🔓 开始解密</button>
+        <button class="btn-ghost" onclick="resetDec()">重置</button>
+      </div>
+
+      <div id="dec-result" style="display:none">
+        <div class="alert success">✅ 解密完成！</div>
+        <button class="btn-primary" onclick="downloadDecFile()">⬇ 下载解密文件</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 密钥对生成面板 -->
+  <div id="panel-keys" class="panel" style="display:none">
+    <div class="section">
+      <p class="muted">生成用于非对称加密的 X25519 密钥对。私钥请妥善保管，不要泄露给任何人。</p>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn-primary" onclick="generateKeyPair()">🎲 生成密钥对</button>
+      </div>
+      <div id="keys-result" style="display:none">
+        <div class="field" style="margin-top:16px">
+          <label>公钥（可分享给对方）</label>
+          <div class="input-row">
+            <input type="text" id="keys-public" readonly>
+            <button class="btn-icon" onclick="copyVal('keys-public')" title="复制">📋</button>
+            <button class="btn-icon" onclick="downloadKey('keys-public','.public')" title="下载">⬇</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>私钥（请勿泄露）</label>
+          <div class="input-row">
+            <input type="password" id="keys-private">
+            <button class="btn-icon" onclick="togglePwd('keys-private')" title="显示/隐藏">👁</button>
+            <button class="btn-icon" onclick="copyVal('keys-private')" title="复制">📋</button>
+            <button class="btn-icon" onclick="downloadKey('keys-private','.private')" title="下载">⬇</button>
+          </div>
+        </div>
+        <div class="alert info" style="margin-top:8px">⚠️ 请立即备份私钥，关闭页面后无法找回。</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="msg" class="msg"></div>
+</div>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 16px; color: #1e293b; }
+  .wrap { max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 0; }
+
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid #e2e8f0; margin-bottom: 0; }
+  .tab { padding: 10px 20px; border: none; background: none; font-size: 0.9rem; font-weight: 600; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+  .tab.active { color: #1e293b; border-bottom-color: #3b82f6; }
+  .tab:hover:not(.active) { color: #475569; }
+
+  .panel { background: #fff; border-radius: 0 0 12px 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 24px; }
+  .section { display: flex; flex-direction: column; gap: 16px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  input[type="text"], input[type="password"] {
+    flex: 1; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 0.9rem; outline: none; transition: border-color 0.2s; background: #f8fafc;
+  }
+  input:focus { border-color: #3b82f6; background: #fff; }
+  input[readonly] { background: #f1f5f9; color: #334155; font-family: 'Courier New', monospace; font-size: 0.82rem; }
+
+  .input-row { display: flex; gap: 6px; align-items: center; }
+  .radio-group { display: flex; gap: 20px; }
+  .radio-label { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #334155; cursor: pointer; font-weight: 500; }
+
+  .drop-zone { border: 2px dashed #cbd5e1; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: #3b82f6; background: #eff6ff; }
+  .drop-hint { font-size: 0.88rem; color: #64748b; }
+  .file-selected { font-size: 0.88rem; color: #1e293b; font-weight: 600; }
+  .file-size { font-size: 0.78rem; color: #94a3b8; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  button { padding: 9px 18px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: #3b82f6; color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ghost { background: #f1f5f9; color: #475569; border: 1.5px solid #e2e8f0; }
+  .btn-ghost:hover { background: #e2e8f0; }
+  .btn-icon { background: #f1f5f9; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; flex-shrink: 0; }
+  .btn-icon:hover { background: #e2e8f0; }
+  .btn-icon input[type="file"] { display: none; }
+
+  .alert { padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; }
+  .alert.error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .alert.success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .alert.info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+
+  .progress-bar { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #6366f1); width: 0%; transition: width 0.3s; }
+  .progress-text { font-size: 0.82rem; color: #64748b; margin-top: 4px; text-align: center; }
+
+  .strength-bar-wrap { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .strength-bar { flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+  .strength-fill { height: 100%; border-radius: 3px; transition: width 0.3s, background 0.3s; }
+  .strength-label { font-size: 0.78rem; font-weight: 600; min-width: 40px; }
+
+  .muted { font-size: 0.85rem; color: #64748b; line-height: 1.6; }
+  .msg { font-size: 0.82rem; min-height: 18px; color: #3b82f6; margin-top: 8px; text-align: center; }
+</style>
+
+<script>
+// ── 常量（与 hat.sh v2 格式兼容）──
+const SIG_SYMMETRIC  = 'zDKO6XYXioc';   // 11 bytes
+const SIG_ASYMMETRIC = 'hTWKbfoikeg';   // 11 bytes
+const CHUNK_SIZE     = 64 * 1024 * 1024; // 64 MB
+const ABYTES         = 17;               // crypto_secretstream ABYTES
+const MAX_SIZE       = 1024 * 1024 * 1024;
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+// ── 状态 ──
+let sodiumReady = false;
+let sodium;
+let encFile = null, decFile = null;
+let encBuf = null, decBuf = null;
+
+// ── 初始化 libsodium ──
+_sodium.ready.then(() => {
+  sodium = _sodium;
+  sodiumReady = true;
+  showMsg('libsodium 已就绪');
+}).catch(() => showMsg('libsodium 加载失败，请刷新页面'));
+
+// ── 标签页切换 ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['enc','dec','keys'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  ['enc','dec','keys'].forEach(n => {
+    document.getElementById('panel-' + n).style.display = n === name ? 'block' : 'none';
+  });
+}
+
+// ── 文件拖放 ──
+function setupDrop(dropId, inputId, infoId, onFile) {
+  const zone = document.getElementById(dropId);
+  const input = document.getElementById(inputId);
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => { if (input.files[0]) onFile(input.files[0]); });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
+  });
+}
+
+function setFileInfo(infoId, file) {
+  const el = document.getElementById(infoId);
+  el.innerHTML = `<div class="file-selected">📄 ${file.name}</div><div class="file-size">${fmtBytes(file.size)}</div>`;
+}
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  if (b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
+  return (b/1024/1024/1024).toFixed(2) + ' GB';
+}
+
+setupDrop('enc-drop', 'enc-file', 'enc-file-info', f => {
+  if (f.size > MAX_SIZE) { showErr('enc-error', '文件超过 1 GB 限制'); return; }
+  encFile = f; setFileInfo('enc-file-info', f); hideEl('enc-error'); hideEl('enc-result');
+});
+
+setupDrop('dec-drop', 'dec-file', 'dec-file-info', f => {
+  if (f.size > MAX_SIZE) { showErr('dec-error', '文件超过 1 GB 限制'); return; }
+  decFile = f; setFileInfo('dec-file-info', f); hideEl('dec-error'); hideEl('dec-result');
+  hideEl('dec-method-info'); hideEl('dec-password-section'); hideEl('dec-keypair-section');
+  checkDecFile(f);
+});
+
+// ── 检测解密文件签名 ──
+function checkDecFile(file) {
+  file.slice(0, 11).arrayBuffer().then(buf => {
+    const sig = dec.decode(new Uint8Array(buf));
+    if (sig === SIG_SYMMETRIC) {
+      showEl('dec-method-info');
+      document.getElementById('dec-method-info').textContent = '🔑 检测到密码加密文件';
+      showEl('dec-password-section');
+    } else if (sig === SIG_ASYMMETRIC) {
+      showEl('dec-method-info');
+      document.getElementById('dec-method-info').textContent = '🔐 检测到公钥加密文件';
+      showEl('dec-keypair-section');
+    } else {
+      showErr('dec-error', '无法识别的文件格式，请确认是 hat.sh 加密的文件');
+    }
+  });
+}
+
+// ── 加密方式切换 ──
+function encMethodChange() {
+  const method = document.querySelector('input[name="enc-method"]:checked').value;
+  document.getElementById('enc-password-section').style.display = method === 'password' ? 'block' : 'none';
+  document.getElementById('enc-keypair-section').style.display  = method === 'keypair'  ? 'block' : 'none';
+}
+
+// ── 密码强度 ──
+function checkEncPasswordStrength() {
+  const pwd = document.getElementById('enc-password').value;
+  const wrap = document.getElementById('enc-pwd-strength');
+  if (!pwd) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  let score = 0;
+  if (pwd.length >= 8)  score++;
+  if (pwd.length >= 12) score++;
+  if (pwd.length >= 16) score++;
+  if (/[A-Z]/.test(pwd)) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  const levels = [
+    { pct: 16, color: '#ef4444', text: '极弱' },
+    { pct: 33, color: '#f97316', text: '弱' },
+    { pct: 50, color: '#eab308', text: '一般' },
+    { pct: 66, color: '#84cc16', text: '较强' },
+    { pct: 83, color: '#22c55e', text: '强' },
+    { pct: 100, color: '#10b981', text: '极强' },
+  ];
+  const lv = levels[Math.min(score, 5)];
+  const fill = document.getElementById('enc-pwd-fill');
+  fill.style.width = lv.pct + '%';
+  fill.style.background = lv.color;
+  document.getElementById('enc-pwd-label').textContent = lv.text;
+  document.getElementById('enc-pwd-label').style.color = lv.color;
+}
+
+// ── 随机密码 ──
+async function genPassword() {
+  if (!sodiumReady) return;
+  const pwd = sodium.to_base64(sodium.randombytes_buf(16), sodium.base64_variants.URLSAFE_NO_PADDING);
+  document.getElementById('enc-password').value = pwd;
+  document.getElementById('enc-password').type = 'text';
+  checkEncPasswordStrength();
+  showMsg('已生成随机密码');
+}
+
+// ── 显示/隐藏密码 ──
+function togglePwd(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+// ── 从文件加载密钥 ──
+function loadKeyFile(input, targetId) {
+  const file = input.files[0];
+  if (!file || file.size > 1000000) return;
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById(targetId).value = e.target.result.trim(); };
+  reader.readAsText(file);
+}
+
+// ── 进度条 ──
+function setProgress(wrapId, fillId, textId, pct, text) {
+  document.getElementById(wrapId).style.display = 'block';
+  document.getElementById(fillId).style.width = pct + '%';
+  document.getElementById(textId).textContent = text;
+}
+
+// ── 加密 ──
+async function startEncrypt() {
+  if (!sodiumReady) { showMsg('libsodium 未就绪，请稍候'); return; }
+  if (!encFile) { showErr('enc-error', '请先选择文件'); return; }
+  const method = document.querySelector('input[name="enc-method"]:checked').value;
+
+  hideEl('enc-error'); hideEl('enc-result'); encBuf = null;
+
+  if (method === 'password') {
+    const pwd = document.getElementById('enc-password').value;
+    if (!pwd || pwd.length < 12) { showErr('enc-error', '密码至少需要 12 位'); return; }
+    await encryptWithPassword(pwd);
+  } else {
+    const rpk = document.getElementById('enc-recipient-pk').value.trim();
+    const ssk = document.getElementById('enc-sender-sk').value.trim();
+    if (!rpk || !ssk) { showErr('enc-error', '请填写接收方公钥和你的私钥'); return; }
+    await encryptWithKeyPair(rpk, ssk);
+  }
+}
+
+async function encryptWithPassword(password) {
+  const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
+  const key = sodium.crypto_pwhash(
+    sodium.crypto_secretstream_xchacha20poly1305_KEYBYTES,
+    password, salt,
+    sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
+    sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
+    sodium.crypto_pwhash_ALG_ARGON2ID13
+  );
+  const res = sodium.crypto_secretstream_xchacha20poly1305_init_push(key);
+  const chunks = [enc.encode(SIG_SYMMETRIC), salt, res.header];
+  await encryptChunks(encFile, res.state, chunks, 'enc');
+}
+
+async function encryptWithKeyPair(recipientPk, senderSk) {
+  try {
+    const skBytes = sodium.from_base64(senderSk);
+    const pkBytes = sodium.from_base64(recipientPk);
+    if (skBytes.length !== sodium.crypto_kx_SECRETKEYBYTES) { showErr('enc-error', '私钥格式错误'); return; }
+    if (pkBytes.length !== sodium.crypto_kx_PUBLICKEYBYTES) { showErr('enc-error', '公钥格式错误'); return; }
+    const senderPk = sodium.crypto_scalarmult_base(skBytes);
+    if (sodium.to_base64(senderPk) === recipientPk) { showErr('enc-error', '不能用自己的密钥对加密'); return; }
+    const keys = sodium.crypto_kx_client_session_keys(senderPk, skBytes, pkBytes);
+    const res = sodium.crypto_secretstream_xchacha20poly1305_init_push(keys.sharedTx);
+    const chunks = [enc.encode(SIG_ASYMMETRIC), res.header];
+    await encryptChunks(encFile, res.state, chunks, 'enc');
+  } catch(e) { showErr('enc-error', '密钥错误：' + e.message); }
+}
+
+async function encryptChunks(file, state, headerChunks, prefix) {
+  const total = file.size;
+  let index = 0;
+  const buffers = [...headerChunks];
+
+  setProgress(prefix+'-progress-wrap', prefix+'-progress-fill', prefix+'-progress-text', 0, '加密中...');
+
+  const processChunk = async () => {
+    const end = Math.min(index + CHUNK_SIZE, total);
+    const chunk = await file.slice(index, end).arrayBuffer();
+    const isLast = end >= total;
+    const tag = isLast
+      ? sodium.crypto_secretstream_xchacha20poly1305_TAG_FINAL
+      : sodium.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE;
+    const encrypted = sodium.crypto_secretstream_xchacha20poly1305_push(state, new Uint8Array(chunk), null, tag);
+    buffers.push(new Uint8Array(encrypted));
+    index = end;
+    const pct = Math.round((index / total) * 100);
+    setProgress(prefix+'-progress-wrap', prefix+'-progress-fill', prefix+'-progress-text', pct, `加密中... ${pct}%`);
+    if (!isLast) {
+      await new Promise(r => setTimeout(r, 0)); // yield to UI
+      await processChunk();
+    } else {
+      encBuf = buffers;
+      hideEl(prefix+'-progress-wrap');
+      showEl(prefix+'-result');
+      showMsg('加密完成');
+    }
+  };
+  await processChunk();
+}
+
+function downloadEncFile() {
+  if (!encBuf) return;
+  const blob = new Blob(encBuf);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = encFile.name + '.enc';
+  a.click();
+}
+
+function resetEnc() {
+  encFile = null; encBuf = null;
+  document.getElementById('enc-file-info').innerHTML = '📁 点击选择或拖放文件（最大 1 GB）';
+  document.getElementById('enc-password').value = '';
+  document.getElementById('enc-recipient-pk').value = '';
+  document.getElementById('enc-sender-sk').value = '';
+  document.getElementById('enc-pwd-strength').style.display = 'none';
+  hideEl('enc-error'); hideEl('enc-result'); hideEl('enc-progress-wrap');
+  document.getElementById('enc-file').value = '';
+}
+
+// ── 解密 ──
+async function startDecrypt() {
+  if (!sodiumReady) { showMsg('libsodium 未就绪，请稍候'); return; }
+  if (!decFile) { showErr('dec-error', '请先选择文件'); return; }
+  hideEl('dec-error'); hideEl('dec-result'); decBuf = null;
+
+  const sig = dec.decode(new Uint8Array(await decFile.slice(0, 11).arrayBuffer()));
+
+  if (sig === SIG_SYMMETRIC) {
+    const pwd = document.getElementById('dec-password').value;
+    if (!pwd) { showErr('dec-error', '请输入密码'); return; }
+    await decryptWithPassword(pwd);
+  } else if (sig === SIG_ASYMMETRIC) {
+    const spk = document.getElementById('dec-sender-pk').value.trim();
+    const rsk = document.getElementById('dec-recipient-sk').value.trim();
+    if (!spk || !rsk) { showErr('dec-error', '请填写发送方公钥和你的私钥'); return; }
+    await decryptWithKeyPair(spk, rsk);
+  } else {
+    showErr('dec-error', '无法识别的文件格式');
+  }
+}
+
+async function decryptWithPassword(password) {
+  // 格式: [11 sig][16 salt][24 header][chunks...]
+  const [saltBuf, headerBuf] = await Promise.all([
+    decFile.slice(11, 27).arrayBuffer(),
+    decFile.slice(27, 51).arrayBuffer(),
+  ]);
+  const salt = new Uint8Array(saltBuf);
+  const header = new Uint8Array(headerBuf);
+  const key = sodium.crypto_pwhash(
+    sodium.crypto_secretstream_xchacha20poly1305_KEYBYTES,
+    password, salt,
+    sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
+    sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
+    sodium.crypto_pwhash_ALG_ARGON2ID13
+  );
+  const state = sodium.crypto_secretstream_xchacha20poly1305_init_pull(header, key);
+  if (!state) { showErr('dec-error', '密码错误或文件损坏'); return; }
+  await decryptChunks(decFile, state, 51, 'dec');
+}
+
+async function decryptWithKeyPair(senderPk, recipientSk) {
+  try {
+    const skBytes = sodium.from_base64(recipientSk);
+    const pkBytes = sodium.from_base64(senderPk);
+    if (skBytes.length !== sodium.crypto_kx_SECRETKEYBYTES) { showErr('dec-error', '私钥格式错误'); return; }
+    if (pkBytes.length !== sodium.crypto_kx_PUBLICKEYBYTES) { showErr('dec-error', '公钥格式错误'); return; }
+    const recipientPk = sodium.crypto_scalarmult_base(skBytes);
+    const keys = sodium.crypto_kx_server_session_keys(recipientPk, skBytes, pkBytes);
+    // 格式: [11 sig][24 header][chunks...]
+    const header = new Uint8Array(await decFile.slice(11, 35).arrayBuffer());
+    const state = sodium.crypto_secretstream_xchacha20poly1305_init_pull(header, keys.sharedRx);
+    if (!state) { showErr('dec-error', '密钥错误或文件损坏'); return; }
+    await decryptChunks(decFile, state, 35, 'dec');
+  } catch(e) { showErr('dec-error', '密钥错误：' + e.message); }
+}
+
+async function decryptChunks(file, state, startIndex, prefix) {
+  const total = file.size;
+  let index = startIndex;
+  const buffers = [];
+  const chunkWithAbytes = CHUNK_SIZE + ABYTES;
+
+  setProgress(prefix+'-progress-wrap', prefix+'-progress-fill', prefix+'-progress-text', 0, '解密中...');
+
+  const processChunk = async () => {
+    const end = Math.min(index + chunkWithAbytes, total);
+    const chunk = await file.slice(index, end).arrayBuffer();
+    const result = sodium.crypto_secretstream_xchacha20poly1305_pull(state, new Uint8Array(chunk));
+    if (!result) { showErr(prefix+'-error', '解密失败：密码/密钥错误或文件损坏'); hideEl(prefix+'-progress-wrap'); return; }
+    buffers.push(new Uint8Array(result.message));
+    index = end;
+    const pct = Math.round(((index - startIndex) / (total - startIndex)) * 100);
+    setProgress(prefix+'-progress-wrap', prefix+'-progress-fill', prefix+'-progress-text', pct, `解密中... ${pct}%`);
+    if (index < total) {
+      await new Promise(r => setTimeout(r, 0));
+      await processChunk();
+    } else {
+      decBuf = buffers;
+      hideEl(prefix+'-progress-wrap');
+      showEl(prefix+'-result');
+      showMsg('解密完成');
+    }
+  };
+  await processChunk();
+}
+
+function downloadDecFile() {
+  if (!decBuf) return;
+  const name = decFile.name.endsWith('.enc') ? decFile.name.slice(0, -4) : decFile.name + '.dec';
+  const blob = new Blob(decBuf);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+}
+
+function resetDec() {
+  decFile = null; decBuf = null;
+  document.getElementById('dec-file-info').innerHTML = '📁 点击选择或拖放 .enc 文件';
+  document.getElementById('dec-password').value = '';
+  document.getElementById('dec-sender-pk').value = '';
+  document.getElementById('dec-recipient-sk').value = '';
+  document.getElementById('dec-file').value = '';
+  hideEl('dec-error'); hideEl('dec-result'); hideEl('dec-progress-wrap');
+  hideEl('dec-method-info'); hideEl('dec-password-section'); hideEl('dec-keypair-section');
+}
+
+// ── 生成密钥对 ──
+async function generateKeyPair() {
+  if (!sodiumReady) { showMsg('libsodium 未就绪'); return; }
+  const kp = sodium.crypto_kx_keypair();
+  document.getElementById('keys-public').value  = sodium.to_base64(kp.publicKey);
+  document.getElementById('keys-private').value = sodium.to_base64(kp.privateKey);
+  document.getElementById('keys-private').type  = 'password';
+  showEl('keys-result');
+  showMsg('密钥对已生成');
+}
+
+function copyVal(id) {
+  const v = document.getElementById(id).value;
+  if (!v) return;
+  navigator.clipboard.writeText(v).then(() => showMsg('已复制到剪贴板'));
+}
+
+function downloadKey(id, ext) {
+  const v = document.getElementById(id).value;
+  if (!v) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([v], { type: 'text/plain' }));
+  a.download = 'key' + ext;
+  a.click();
+}
+
+// ── 工具函数 ──
+function showEl(id) { document.getElementById(id).style.display = 'block'; }
+function hideEl(id) { document.getElementById(id).style.display = 'none'; }
+function showErr(id, msg) { const el = document.getElementById(id); el.textContent = '❌ ' + msg; el.style.display = 'block'; }
+function showMsg(m) { document.getElementById('msg').textContent = m; }
+</script>
+</body>
+</html>
