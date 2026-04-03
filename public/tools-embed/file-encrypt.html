@@ -264,19 +264,19 @@ function checkPwd(pwd){
 async function encryptFile(file, key, headerBytes) {
   var total = file.size, idx = 0, chunks = [headerBytes];
   var nonce = C.getRandomValues(new Uint8Array(12));
-  chunks.push(nonce);
+  // push a copy so later increments don't affect the stored value
+  chunks.push(nonce.slice());
 
   while (idx < total) {
     var end = Math.min(idx + CHUNK, total);
     var plain = await file.slice(idx, end).arrayBuffer();
     var isLast = end >= total;
-    // increment nonce for each chunk (counter mode)
     var ct = await C.subtle.encrypt({name:'AES-GCM', iv:nonce}, key, plain);
     var lenFlag = ct.byteLength | (isLast ? 0x80000000 : 0);
     chunks.push(u32be(lenFlag));
     chunks.push(new Uint8Array(ct));
     idx = end;
-    // increment nonce
+    // increment nonce counter
     for (var i = 11; i >= 0; i--) { if (++nonce[i] !== 0) break; }
     var pct = Math.round(idx/total*100);
     setProg('enc-prog','enc-pf2','enc-pt2', pct, '加密中... '+pct+'%');
