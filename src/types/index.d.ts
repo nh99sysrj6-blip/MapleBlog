@@ -20,6 +20,7 @@ export type PoetryEntry = CollectionEntry<"poetry">;
 export type PortfolioEntry = CollectionEntry<"portfolio">;
 export type RecipesEntry = CollectionEntry<"recipes">;
 export type TermsEntry = CollectionEntry<"terms">;
+export type ToolsEntry = CollectionEntry<"tools">;
 export type SearchableEntry =
   | AboutEntry
   | AuthorsEntry
@@ -31,7 +32,8 @@ export type SearchableEntry =
   | PoetryEntry
   | PortfolioEntry
   | RecipesEntry
-  | TermsEntry;
+  | TermsEntry
+  | ToolsEntry;
   
 export type SocialLinks = {
   wechat?: string;
