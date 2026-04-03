@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>文件加密工具</title>
-<script src="./libsodium-wrappers.js"></script>
 <style>
 html,body{background:transparent!important;min-height:unset!important}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -49,7 +48,7 @@ button{padding:9px 18px;border:none;border-radius:8px;font-size:.9rem;font-weigh
 .sfill{height:100%;border-radius:3px;transition:width .3s,background .3s}
 .slbl{font-size:.78rem;font-weight:600;min-width:40px}
 .muted{font-size:.85rem;color:#64748b;line-height:1.6}
-#msg{font-size:.82rem;min-height:18px;color:#3b82f6;margin-top:8px;text-align:center}
+#msg{font-size:.82rem;min-height:18px;color:#64748b;margin-top:8px;text-align:center}
 </style>
 </head>
 <body>
@@ -64,20 +63,23 @@ button{padding:9px 18px;border:none;border-radius:8px;font-size:.9rem;font-weigh
   <div id="panel-enc" class="panel">
     <div class="section">
       <div class="field"><label>选择文件</label>
-        <div class="drop" id="enc-drop"><input type="file" id="enc-file"><div id="enc-finfo" class="dhint">📁 点击选择或拖放文件（最大 1 GB）</div></div>
+        <div class="drop" id="enc-drop">
+          <input type="file" id="enc-file">
+          <div id="enc-finfo" class="dhint">📁 点击选择或拖放文件</div>
+        </div>
       </div>
       <div class="field"><label>加密方式</label>
         <div class="rgroup">
           <label class="rlabel"><input type="radio" name="enc-m" value="pw" checked> 密码加密</label>
-          <label class="rlabel"><input type="radio" name="enc-m" value="kp"> 公钥加密</label>
+          <label class="rlabel"><input type="radio" name="enc-m" value="kp"> 公钥加密（ECDH）</label>
         </div>
       </div>
       <div id="enc-pw-sec">
-        <div class="field"><label>密码（至少 12 位）</label>
+        <div class="field"><label>密码（至少 8 位）</label>
           <div class="irow">
             <input type="password" id="enc-pwd" placeholder="输入加密密码">
             <button class="bi" id="enc-pt">👁</button>
-            <button class="bi" id="enc-pg">🎲</button>
+            <button class="bi" id="enc-pg" title="随机生成">🎲</button>
           </div>
           <div id="enc-ps" class="swrap" style="display:none">
             <div class="sbar"><div id="enc-pf" class="sfill"></div></div>
@@ -86,18 +88,18 @@ button{padding:9px 18px;border:none;border-radius:8px;font-size:.9rem;font-weigh
         </div>
       </div>
       <div id="enc-kp-sec" style="display:none">
-        <div class="field"><label>接收方公钥</label>
-          <div class="irow"><input type="text" id="enc-rpk" placeholder="粘贴接收方公钥（Base64）">
-            <label class="bi">📎<input type="file" id="enc-rpkf" accept=".public,.txt"></label></div>
-        </div>
-        <div class="field"><label>你的私钥</label>
-          <div class="irow"><input type="password" id="enc-ssk" placeholder="粘贴你的私钥（Base64）">
-            <button class="bi" id="enc-st">👁</button>
-            <label class="bi">📎<input type="file" id="enc-sskf" accept=".private,.txt"></label></div>
+        <div class="field"><label>接收方公钥（Base64 导出的 ECDH P-256 公钥）</label>
+          <div class="irow">
+            <input type="text" id="enc-rpk" placeholder="粘贴接收方公钥">
+            <label class="bi" title="从文件加载">📎<input type="file" id="enc-rpkf" accept=".pub,.txt"></label>
+          </div>
         </div>
       </div>
       <div id="enc-err" class="ae err" style="display:none"></div>
-      <div id="enc-prog" style="display:none"><div class="pbar"><div id="enc-pf2" class="pfill"></div></div><div id="enc-pt2" class="ptxt"></div></div>
+      <div id="enc-prog" style="display:none">
+        <div class="pbar"><div id="enc-pf2" class="pfill"></div></div>
+        <div id="enc-pt2" class="ptxt"></div>
+      </div>
       <div class="brow">
         <button class="bp" id="enc-btn">🔒 开始加密</button>
         <button class="bg" id="enc-rst">重置</button>
@@ -113,28 +115,34 @@ button{padding:9px 18px;border:none;border-radius:8px;font-size:.9rem;font-weigh
   <div id="panel-dec" class="panel" style="display:none">
     <div class="section">
       <div class="field"><label>选择加密文件（.enc）</label>
-        <div class="drop" id="dec-drop"><input type="file" id="dec-file"><div id="dec-finfo" class="dhint">📁 点击选择或拖放 .enc 文件</div></div>
+        <div class="drop" id="dec-drop">
+          <input type="file" id="dec-file">
+          <div id="dec-finfo" class="dhint">📁 点击选择或拖放 .enc 文件</div>
+        </div>
       </div>
       <div id="dec-minfo" class="ae info" style="display:none"></div>
       <div id="dec-pw-sec" style="display:none">
         <div class="field"><label>密码</label>
-          <div class="irow"><input type="password" id="dec-pwd" placeholder="输入解密密码">
-            <button class="bi" id="dec-pt">👁</button></div>
+          <div class="irow">
+            <input type="password" id="dec-pwd" placeholder="输入解密密码">
+            <button class="bi" id="dec-pt">👁</button>
+          </div>
         </div>
       </div>
       <div id="dec-kp-sec" style="display:none">
-        <div class="field"><label>发送方公钥</label>
-          <div class="irow"><input type="text" id="dec-spk" placeholder="粘贴发送方公钥（Base64）">
-            <label class="bi">📎<input type="file" id="dec-spkf" accept=".public,.txt"></label></div>
-        </div>
-        <div class="field"><label>你的私钥</label>
-          <div class="irow"><input type="password" id="dec-rsk" placeholder="粘贴你的私钥（Base64）">
+        <div class="field"><label>你的私钥（Base64）</label>
+          <div class="irow">
+            <input type="password" id="dec-rsk" placeholder="粘贴你的私钥">
             <button class="bi" id="dec-rt">👁</button>
-            <label class="bi">📎<input type="file" id="dec-rskf" accept=".private,.txt"></label></div>
+            <label class="bi">📎<input type="file" id="dec-rskf" accept=".priv,.txt"></label>
+          </div>
         </div>
       </div>
       <div id="dec-err" class="ae err" style="display:none"></div>
-      <div id="dec-prog" style="display:none"><div class="pbar"><div id="dec-pf" class="pfill"></div></div><div id="dec-pt2" class="ptxt"></div></div>
+      <div id="dec-prog" style="display:none">
+        <div class="pbar"><div id="dec-pf" class="pfill"></div></div>
+        <div id="dec-pt2" class="ptxt"></div>
+      </div>
       <div class="brow">
         <button class="bp" id="dec-btn">🔓 开始解密</button>
         <button class="bg" id="dec-rst">重置</button>
@@ -149,54 +157,61 @@ button{padding:9px 18px;border:none;border-radius:8px;font-size:.9rem;font-weigh
   <!-- 密钥对 -->
   <div id="panel-keys" class="panel" style="display:none">
     <div class="section">
-      <p class="muted">生成用于非对称加密的 X25519 密钥对。私钥请妥善保管，不要泄露给任何人。</p>
-      <div class="brow" style="margin-top:8px"><button class="bp" id="keys-gen">🎲 生成密钥对</button></div>
+      <p class="muted">生成用于非对称加密的 ECDH P-256 密钥对。私钥请妥善保管，不要泄露给任何人。</p>
+      <div class="brow" style="margin-top:8px">
+        <button class="bp" id="keys-gen">🎲 生成密钥对</button>
+      </div>
       <div id="keys-res" style="display:none">
-        <div class="field" style="margin-top:8px"><label>公钥（可分享给对方）</label>
-          <div class="irow"><input type="text" id="kpub" readonly>
+        <div class="field" style="margin-top:8px"><label>公钥（分享给加密方）</label>
+          <div class="irow">
+            <input type="text" id="kpub" readonly>
             <button class="bi" id="kpub-cp">📋</button>
-            <button class="bi" id="kpub-dl">⬇</button></div>
+            <button class="bi" id="kpub-dl">⬇</button>
+          </div>
         </div>
         <div class="field"><label>私钥（请勿泄露）</label>
-          <div class="irow"><input type="password" id="kpriv">
+          <div class="irow">
+            <input type="password" id="kpriv">
             <button class="bi" id="kpriv-t">👁</button>
             <button class="bi" id="kpriv-cp">📋</button>
-            <button class="bi" id="kpriv-dl">⬇</button></div>
+            <button class="bi" id="kpriv-dl">⬇</button>
+          </div>
         </div>
         <div class="ae info" style="margin-top:8px">⚠️ 请立即备份私钥，关闭页面后无法找回。</div>
       </div>
     </div>
   </div>
 
-  <div id="msg">⏳ 正在加载加密库...</div>
+  <div id="msg"></div>
 </div>
 
 <script>
+// ── height reporting ──
 (function(){
-  // height reporting
   function rh(){var h=document.documentElement.scrollHeight||document.body.scrollHeight;window.parent.postMessage({type:'tool-height',height:h},'*')}
   window.addEventListener('load',rh);window.addEventListener('resize',rh);
   var mo=new MutationObserver(rh);
   document.addEventListener('DOMContentLoaded',function(){mo.observe(document.body,{childList:true,subtree:true,attributes:true})});
 })();
 
-// hat.sh v2 constants
-var SIG_SYM  = 'zDKO6XYXioc';
-var SIG_ASYM = 'hTWKbfoikeg';
-var CHUNK    = 64*1024*1024;
-var ABYTES   = 17;
-var MAX_SIZE = 1024*1024*1024;
-var ENC = new TextEncoder();
-var DEC = new TextDecoder();
+// ── 文件格式 ──
+// 密码加密: [4 magic "FENC"][1 version=1][1 mode=0][16 salt][12 nonce][...AES-GCM chunks]
+// 公钥加密: [4 magic "FENC"][1 version=1][1 mode=1][65 ephemeral pubkey][12 nonce][...AES-GCM chunks]
+// 每个 chunk: [4 chunk_len_BE][encrypted_data(chunk+16 tag)]
+// 最后一个 chunk 标记: chunk_len 最高位置1
 
-var Na = null;
-var encFile=null, decFile=null, encBuf=null, decBuf=null;
+var MAGIC   = new Uint8Array([70,69,78,67]); // "FENC"
+var VERSION = 1;
+var CHUNK   = 1024*1024; // 1 MB per chunk (smaller = more responsive UI)
+var C = window.crypto;
 
 var $ = function(id){return document.getElementById(id)};
 var show = function(id){$(id).style.display='block'};
 var hide = function(id){$(id).style.display='none'};
 var showErr = function(id,msg){$(id).textContent='❌ '+msg;show(id)};
 var setMsg = function(m){$('msg').textContent=m};
+
+var encFile=null, decFile=null, encBuf=null, decBuf=null;
 
 function fmtBytes(b){
   if(b<1024)return b+' B';
@@ -207,15 +222,31 @@ function fmtBytes(b){
 function setFInfo(id,f){$(id).innerHTML='<div class="fsel">📄 '+f.name+'</div><div class="fsz">'+fmtBytes(f.size)+'</div>'}
 function setProg(pid,fid,tid,pct,txt){show(pid);$(fid).style.width=pct+'%';$(tid).textContent=txt}
 function togglePwd(id){var e=$(id);e.type=e.type==='password'?'text':'password'}
-function loadKey(inp,tid){
-  var f=inp.files[0];if(!f||f.size>1000000)return;
+function loadKeyFile(inp,tid){
+  var f=inp.files[0];if(!f||f.size>100000)return;
   var r=new FileReader();r.onload=function(e){$(tid).value=e.target.result.trim()};r.readAsText(f);
 }
 function dlBlob(bufs,name){
   var a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob(bufs));
+  a.href=URL.createObjectURL(new Blob(Array.isArray(bufs)?bufs:[bufs]));
   a.download=name;a.click();
 }
+function b64enc(buf){return btoa(String.fromCharCode.apply(null,new Uint8Array(buf)))}
+function b64dec(s){var b=atob(s);var u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer}
+function u32be(n){return new Uint8Array([(n>>>24)&0xff,(n>>>16)&0xff,(n>>>8)&0xff,n&0xff])}
+function readU32be(arr,off){return ((arr[off]<<24)|(arr[off+1]<<16)|(arr[off+2]<<8)|arr[off+3])>>>0}
+
+// ── 密钥派生 (PBKDF2) ──
+async function deriveKey(password, salt) {
+  var enc = new TextEncoder();
+  var keyMat = await C.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return C.subtle.deriveKey(
+    {name:'PBKDF2', salt:salt, iterations:200000, hash:'SHA-256'},
+    keyMat, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']
+  );
+}
+
+// ── 密码强度 ──
 function checkPwd(pwd){
   var w=$('enc-ps');
   if(!pwd){w.style.display='none';return}
@@ -229,134 +260,166 @@ function checkPwd(pwd){
   $('enc-pl').textContent=lv.t;$('enc-pl').style.color=lv.c;
 }
 
-// ── 加密 ──
-function encWithPwd(pwd){
-  var salt=Na.randombytes_buf(Na.crypto_pwhash_SALTBYTES);
-  var key=Na.crypto_pwhash(Na.crypto_secretstream_xchacha20poly1305_KEYBYTES,pwd,salt,
-    Na.crypto_pwhash_OPSLIMIT_INTERACTIVE,Na.crypto_pwhash_MEMLIMIT_INTERACTIVE,Na.crypto_pwhash_ALG_ARGON2ID13);
-  var res=Na.crypto_secretstream_xchacha20poly1305_init_push(key);
-  runEnc([ENC.encode(SIG_SYM),salt,res.header],res.state);
-}
-function encWithKP(rpk,ssk){
-  try{
-    var skB=Na.from_base64(ssk),pkB=Na.from_base64(rpk);
-    if(skB.length!==Na.crypto_kx_SECRETKEYBYTES){showErr('enc-err','私钥格式错误');return}
-    if(pkB.length!==Na.crypto_kx_PUBLICKEYBYTES){showErr('enc-err','公钥格式错误');return}
-    var myPk=Na.crypto_scalarmult_base(skB);
-    if(Na.to_base64(myPk)===rpk){showErr('enc-err','不能用自己的密钥对加密');return}
-    var keys=Na.crypto_kx_client_session_keys(myPk,skB,pkB);
-    var res=Na.crypto_secretstream_xchacha20poly1305_init_push(keys.sharedTx);
-    runEnc([ENC.encode(SIG_ASYM),res.header],res.state);
-  }catch(e){showErr('enc-err','密钥错误：'+e.message)}
-}
-function runEnc(headers,state){
-  var total=encFile.size,idx=0,bufs=headers.slice();
-  setProg('enc-prog','enc-pf2','enc-pt2',0,'加密中...');
-  function next(){
-    var end=Math.min(idx+CHUNK,total);
-    encFile.slice(idx,end).arrayBuffer().then(function(chunk){
-      var isLast=end>=total;
-      var tag=isLast?Na.crypto_secretstream_xchacha20poly1305_TAG_FINAL:Na.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE;
-      bufs.push(new Uint8Array(Na.crypto_secretstream_xchacha20poly1305_push(state,new Uint8Array(chunk),null,tag)));
-      idx=end;
-      var pct=Math.round(idx/total*100);
-      setProg('enc-prog','enc-pf2','enc-pt2',pct,'加密中... '+pct+'%');
-      if(!isLast){setTimeout(next,0)}
-      else{encBuf=bufs;hide('enc-prog');show('enc-res');setMsg('加密完成')}
-    });
+// ── 加密核心 ──
+async function encryptFile(file, key, headerBytes) {
+  var total = file.size, idx = 0, chunks = [headerBytes];
+  var nonce = C.getRandomValues(new Uint8Array(12));
+  chunks.push(nonce);
+
+  while (idx < total) {
+    var end = Math.min(idx + CHUNK, total);
+    var plain = await file.slice(idx, end).arrayBuffer();
+    var isLast = end >= total;
+    // increment nonce for each chunk (counter mode)
+    var ct = await C.subtle.encrypt({name:'AES-GCM', iv:nonce}, key, plain);
+    var lenFlag = ct.byteLength | (isLast ? 0x80000000 : 0);
+    chunks.push(u32be(lenFlag));
+    chunks.push(new Uint8Array(ct));
+    idx = end;
+    // increment nonce
+    for (var i = 11; i >= 0; i--) { if (++nonce[i] !== 0) break; }
+    var pct = Math.round(idx/total*100);
+    setProg('enc-prog','enc-pf2','enc-pt2', pct, '加密中... '+pct+'%');
+    await new Promise(function(r){setTimeout(r,0)});
   }
-  next();
+  return chunks;
 }
 
-// ── 解密 ──
-function decWithPwd(pwd){
-  Promise.all([decFile.slice(11,27).arrayBuffer(),decFile.slice(27,51).arrayBuffer()]).then(function(r){
-    var key=Na.crypto_pwhash(Na.crypto_secretstream_xchacha20poly1305_KEYBYTES,pwd,
-      new Uint8Array(r[0]),Na.crypto_pwhash_OPSLIMIT_INTERACTIVE,Na.crypto_pwhash_MEMLIMIT_INTERACTIVE,Na.crypto_pwhash_ALG_ARGON2ID13);
-    var state=Na.crypto_secretstream_xchacha20poly1305_init_pull(new Uint8Array(r[1]),key);
-    if(!state){showErr('dec-err','密码错误或文件损坏');return}
-    runDec(state,51);
-  });
-}
-function decWithKP(spk,rsk){
-  try{
-    var skB=Na.from_base64(rsk),pkB=Na.from_base64(spk);
-    if(skB.length!==Na.crypto_kx_SECRETKEYBYTES){showErr('dec-err','私钥格式错误');return}
-    if(pkB.length!==Na.crypto_kx_PUBLICKEYBYTES){showErr('dec-err','公钥格式错误');return}
-    var myPk=Na.crypto_scalarmult_base(skB);
-    var keys=Na.crypto_kx_server_session_keys(myPk,skB,pkB);
-    decFile.slice(11,35).arrayBuffer().then(function(hb){
-      var state=Na.crypto_secretstream_xchacha20poly1305_init_pull(new Uint8Array(hb),keys.sharedRx);
-      if(!state){showErr('dec-err','密钥错误或文件损坏');return}
-      runDec(state,35);
-    });
-  }catch(e){showErr('dec-err','密钥错误：'+e.message)}
-}
-function runDec(state,start){
-  var total=decFile.size,idx=start,bufs=[];
-  setProg('dec-prog','dec-pf','dec-pt2',0,'解密中...');
-  function next(){
-    var end=Math.min(idx+CHUNK+ABYTES,total);
-    decFile.slice(idx,end).arrayBuffer().then(function(chunk){
-      var res=Na.crypto_secretstream_xchacha20poly1305_pull(state,new Uint8Array(chunk));
-      if(!res){showErr('dec-err','解密失败：密码/密钥错误或文件损坏');hide('dec-prog');return}
-      bufs.push(new Uint8Array(res.message));
-      idx=end;
-      var pct=Math.round((idx-start)/(total-start)*100);
-      setProg('dec-prog','dec-pf','dec-pt2',pct,'解密中... '+pct+'%');
-      if(idx<total){setTimeout(next,0)}
-      else{decBuf=bufs;hide('dec-prog');show('dec-res');setMsg('解密完成')}
-    });
+// ── 解密核心 ──
+async function decryptFile(file, key, dataOffset) {
+  var buf = await file.arrayBuffer();
+  var arr = new Uint8Array(buf);
+  var nonce = arr.slice(dataOffset, dataOffset+12).slice(); // copy
+  var pos = dataOffset + 12;
+  var total = arr.length;
+  var plains = [];
+
+  while (pos < total) {
+    var lenFlag = readU32be(arr, pos); pos += 4;
+    var isLast = !!(lenFlag & 0x80000000);
+    var ctLen = lenFlag & 0x7fffffff;
+    var ct = arr.slice(pos, pos+ctLen); pos += ctLen;
+    var plain = await C.subtle.decrypt({name:'AES-GCM', iv:nonce}, key, ct);
+    plains.push(new Uint8Array(plain));
+    var pct = Math.round(pos/total*100);
+    setProg('dec-prog','dec-pf','dec-pt2', pct, '解密中... '+pct+'%');
+    await new Promise(function(r){setTimeout(r,0)});
+    if (isLast) break;
+    for (var i = 11; i >= 0; i--) { if (++nonce[i] !== 0) break; }
   }
-  next();
+  return plains;
 }
 
-// ── 初始化（等 sodium 就绪后绑定所有事件）──
-window.sodium.ready.then(function(){
-  Na = window.sodium;
-  setMsg('✅ 加密库已就绪');
+// ── 密码加密 ──
+async function encWithPwd(file, password) {
+  var salt = C.getRandomValues(new Uint8Array(16));
+  var key = await deriveKey(password, salt);
+  // header: magic(4) + version(1) + mode(1) + salt(16) = 22 bytes
+  var header = new Uint8Array(22);
+  header.set(MAGIC, 0);
+  header[4] = VERSION;
+  header[5] = 0; // mode=password
+  header.set(salt, 6);
+  return encryptFile(file, key, header);
+}
+
+// ── 公钥加密 ──
+async function encWithKP(file, recipientPubKeyB64) {
+  // 生成临时 ECDH 密钥对
+  var ephKP = await C.subtle.generateKey({name:'ECDH',namedCurve:'P-256'}, true, ['deriveKey']);
+  // 导入接收方公钥
+  var rpkRaw;
+  try { rpkRaw = b64dec(recipientPubKeyB64); } catch(e) { throw new Error('公钥格式错误'); }
+  var rpk = await C.subtle.importKey('raw', rpkRaw, {name:'ECDH',namedCurve:'P-256'}, false, []);
+  // ECDH 派生共享密钥
+  var sharedKey = await C.subtle.deriveKey(
+    {name:'ECDH', public:rpk}, ephKP.privateKey,
+    {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']
+  );
+  // 导出临时公钥 (uncompressed, 65 bytes)
+  var ephPubRaw = await C.subtle.exportKey('raw', ephKP.publicKey);
+  // header: magic(4) + version(1) + mode(1) + ephPub(65) = 71 bytes
+  var header = new Uint8Array(71);
+  header.set(MAGIC, 0);
+  header[4] = VERSION;
+  header[5] = 1; // mode=keypair
+  header.set(new Uint8Array(ephPubRaw), 6);
+  return encryptFile(file, sharedKey, header);
+}
+
+// ── 密码解密 ──
+async function decWithPwd(file, password) {
+  var saltBuf = await file.slice(6, 22).arrayBuffer();
+  var key = await deriveKey(password, saltBuf);
+  // dataOffset = 22 (header)
+  return decryptFile(file, key, 22);
+}
+
+// ── 公钥解密 ──
+async function decWithKP(file, privKeyB64) {
+  var ephPubRaw = await file.slice(6, 71).arrayBuffer();
+  var privRaw;
+  try { privRaw = b64dec(privKeyB64); } catch(e) { throw new Error('私钥格式错误'); }
+  var privKey = await C.subtle.importKey('pkcs8', privRaw, {name:'ECDH',namedCurve:'P-256'}, false, ['deriveKey']);
+  var ephPub  = await C.subtle.importKey('raw', ephPubRaw, {name:'ECDH',namedCurve:'P-256'}, false, []);
+  var sharedKey = await C.subtle.deriveKey(
+    {name:'ECDH', public:ephPub}, privKey,
+    {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']
+  );
+  // dataOffset = 71 (header)
+  return decryptFile(file, sharedKey, 71);
+}
+
+// ── 检测文件头 ──
+async function detectFile(file) {
+  var buf = await file.slice(0, 6).arrayBuffer();
+  var arr = new Uint8Array(buf);
+  if (arr[0]!==70||arr[1]!==69||arr[2]!==78||arr[3]!==67) return null;
+  if (arr[4] !== VERSION) return null;
+  return arr[5]; // 0=password, 1=keypair
+}
+
+// ── DOM 初始化 ──
+document.addEventListener('DOMContentLoaded', function() {
 
   // 标签页
-  document.querySelectorAll('.tab').forEach(function(btn){
-    btn.addEventListener('click',function(){
-      var name=btn.dataset.tab;
+  document.querySelectorAll('.tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var name = btn.dataset.tab;
       document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===name)});
       ['enc','dec','keys'].forEach(function(n){$('panel-'+n).style.display=n===name?'block':'none'});
     });
   });
 
   // 文件拖放
-  function setupDrop(zid,fid,infoid,onFile){
-    var zone=$(zid),inp=$(fid);
-    inp.addEventListener('change',function(){if(inp.files[0])onFile(inp.files[0])});
-    zone.addEventListener('dragover',function(e){e.preventDefault();zone.classList.add('over')});
-    zone.addEventListener('dragleave',function(){zone.classList.remove('over')});
-    zone.addEventListener('drop',function(e){
+  function setupDrop(zid, fid, onFile) {
+    var zone=$(zid), inp=$(fid);
+    inp.addEventListener('change', function(){if(inp.files[0])onFile(inp.files[0])});
+    zone.addEventListener('dragover', function(e){e.preventDefault();zone.classList.add('over')});
+    zone.addEventListener('dragleave', function(){zone.classList.remove('over')});
+    zone.addEventListener('drop', function(e){
       e.preventDefault();zone.classList.remove('over');
       if(e.dataTransfer.files[0])onFile(e.dataTransfer.files[0]);
     });
   }
 
-  setupDrop('enc-drop','enc-file','enc-finfo',function(f){
-    if(f.size>MAX_SIZE){showErr('enc-err','文件超过 1 GB 限制');return}
-    encFile=f;setFInfo('enc-finfo',f);hide('enc-err');hide('enc-res');
+  setupDrop('enc-drop','enc-file', function(f){
+    encFile=f; setFInfo('enc-finfo',f); hide('enc-err'); hide('enc-res');
   });
 
-  setupDrop('dec-drop','dec-file','dec-finfo',function(f){
-    if(f.size>MAX_SIZE){showErr('dec-err','文件超过 1 GB 限制');return}
-    decFile=f;setFInfo('dec-finfo',f);
+  setupDrop('dec-drop','dec-file', function(f){
+    decFile=f; setFInfo('dec-finfo',f);
     hide('dec-err');hide('dec-res');hide('dec-minfo');hide('dec-pw-sec');hide('dec-kp-sec');
-    f.slice(0,11).arrayBuffer().then(function(buf){
-      var sig=DEC.decode(new Uint8Array(buf));
-      if(sig===SIG_SYM){$('dec-minfo').textContent='🔑 检测到密码加密文件';show('dec-minfo');show('dec-pw-sec')}
-      else if(sig===SIG_ASYM){$('dec-minfo').textContent='🔐 检测到公钥加密文件';show('dec-minfo');show('dec-kp-sec')}
-      else showErr('dec-err','无法识别的文件格式');
+    detectFile(f).then(function(mode){
+      if(mode===null){showErr('dec-err','无法识别的文件格式，请确认是本工具加密的文件');return}
+      if(mode===0){$('dec-minfo').textContent='🔑 密码加密文件';show('dec-minfo');show('dec-pw-sec')}
+      else{$('dec-minfo').textContent='🔐 公钥加密文件';show('dec-minfo');show('dec-kp-sec')}
     });
   });
 
   // 加密方式切换
   document.querySelectorAll('input[name="enc-m"]').forEach(function(r){
-    r.addEventListener('change',function(){
+    r.addEventListener('change', function(){
       var v=document.querySelector('input[name="enc-m"]:checked').value;
       $('enc-pw-sec').style.display=v==='pw'?'block':'none';
       $('enc-kp-sec').style.display=v==='kp'?'block':'none';
@@ -364,93 +427,107 @@ window.sodium.ready.then(function(){
   });
 
   // 密码强度
-  $('enc-pwd').addEventListener('input',function(){checkPwd(this.value)});
+  $('enc-pwd').addEventListener('input', function(){checkPwd(this.value)});
 
   // 显示/隐藏
-  $('enc-pt').addEventListener('click',function(){togglePwd('enc-pwd')});
-  $('enc-st').addEventListener('click',function(){togglePwd('enc-ssk')});
-  $('dec-pt').addEventListener('click',function(){togglePwd('dec-pwd')});
-  $('dec-rt').addEventListener('click',function(){togglePwd('dec-rsk')});
-  $('kpriv-t').addEventListener('click',function(){togglePwd('kpriv')});
+  $('enc-pt').addEventListener('click', function(){togglePwd('enc-pwd')});
+  $('dec-pt').addEventListener('click', function(){togglePwd('dec-pwd')});
+  $('dec-rt').addEventListener('click', function(){togglePwd('dec-rsk')});
+  $('kpriv-t').addEventListener('click', function(){togglePwd('kpriv')});
 
   // 随机密码
-  $('enc-pg').addEventListener('click',function(){
-    var pwd=Na.to_base64(Na.randombytes_buf(16),Na.base64_variants.URLSAFE_NO_PADDING);
-    $('enc-pwd').value=pwd;$('enc-pwd').type='text';checkPwd(pwd);setMsg('已生成随机密码');
+  $('enc-pg').addEventListener('click', function(){
+    var arr = C.getRandomValues(new Uint8Array(16));
+    var pwd = b64enc(arr.buffer).replace(/[+/=]/g,'').slice(0,20);
+    $('enc-pwd').value=pwd; $('enc-pwd').type='text'; checkPwd(pwd); setMsg('已生成随机密码');
   });
 
   // 加载密钥文件
-  $('enc-rpkf').addEventListener('change',function(){loadKey(this,'enc-rpk')});
-  $('enc-sskf').addEventListener('change',function(){loadKey(this,'enc-ssk')});
-  $('dec-spkf').addEventListener('change',function(){loadKey(this,'dec-spk')});
-  $('dec-rskf').addEventListener('change',function(){loadKey(this,'dec-rsk')});
+  $('enc-rpkf').addEventListener('change', function(){loadKeyFile(this,'enc-rpk')});
+  $('dec-rskf').addEventListener('change', function(){loadKeyFile(this,'dec-rsk')});
 
-  // 加密
-  $('enc-btn').addEventListener('click',function(){
+  // 加密按钮
+  $('enc-btn').addEventListener('click', async function(){
     if(!encFile){showErr('enc-err','请先选择文件');return}
     hide('enc-err');hide('enc-res');encBuf=null;
     var method=document.querySelector('input[name="enc-m"]:checked').value;
-    if(method==='pw'){
-      var pwd=$('enc-pwd').value;
-      if(!pwd||pwd.length<12){showErr('enc-err','密码至少需要 12 位');return}
-      encWithPwd(pwd);
-    }else{
-      var rpk=$('enc-rpk').value.trim(),ssk=$('enc-ssk').value.trim();
-      if(!rpk||!ssk){showErr('enc-err','请填写接收方公钥和你的私钥');return}
-      encWithKP(rpk,ssk);
-    }
+    try{
+      if(method==='pw'){
+        var pwd=$('enc-pwd').value;
+        if(!pwd||pwd.length<8){showErr('enc-err','密码至少需要 8 位');return}
+        encBuf=await encWithPwd(encFile,pwd);
+      }else{
+        var rpk=$('enc-rpk').value.trim();
+        if(!rpk){showErr('enc-err','请填写接收方公钥');return}
+        encBuf=await encWithKP(encFile,rpk);
+      }
+      hide('enc-prog');show('enc-res');setMsg('加密完成');
+    }catch(e){hide('enc-prog');showErr('enc-err',e.message)}
   });
-  $('enc-dl').addEventListener('click',function(){if(encBuf)dlBlob(encBuf,encFile.name+'.enc')});
-  $('enc-rst').addEventListener('click',function(){
+
+  $('enc-dl').addEventListener('click', function(){
+    if(encBuf)dlBlob(encBuf, encFile.name+'.enc');
+  });
+
+  $('enc-rst').addEventListener('click', function(){
     encFile=null;encBuf=null;
-    $('enc-finfo').innerHTML='📁 点击选择或拖放文件（最大 1 GB）';
-    $('enc-pwd').value='';$('enc-rpk').value='';$('enc-ssk').value='';
-    $('enc-ps').style.display='none';$('enc-file').value='';
+    $('enc-finfo').innerHTML='📁 点击选择或拖放文件';
+    $('enc-pwd').value='';$('enc-rpk').value='';$('enc-file').value='';
+    $('enc-ps').style.display='none';
     hide('enc-err');hide('enc-res');hide('enc-prog');
   });
 
-  // 解密
-  $('dec-btn').addEventListener('click',function(){
+  // 解密按钮
+  $('dec-btn').addEventListener('click', async function(){
     if(!decFile){showErr('dec-err','请先选择文件');return}
     hide('dec-err');hide('dec-res');decBuf=null;
-    decFile.slice(0,11).arrayBuffer().then(function(buf){
-      var sig=DEC.decode(new Uint8Array(buf));
-      if(sig===SIG_SYM){
+    var mode=await detectFile(decFile);
+    if(mode===null){showErr('dec-err','无法识别的文件格式');return}
+    try{
+      if(mode===0){
         var pwd=$('dec-pwd').value;
         if(!pwd){showErr('dec-err','请输入密码');return}
-        decWithPwd(pwd);
-      }else if(sig===SIG_ASYM){
-        var spk=$('dec-spk').value.trim(),rsk=$('dec-rsk').value.trim();
-        if(!spk||!rsk){showErr('dec-err','请填写发送方公钥和你的私钥');return}
-        decWithKP(spk,rsk);
-      }else showErr('dec-err','无法识别的文件格式');
-    });
+        decBuf=await decWithPwd(decFile,pwd);
+      }else{
+        var rsk=$('dec-rsk').value.trim();
+        if(!rsk){showErr('dec-err','请填写你的私钥');return}
+        decBuf=await decWithKP(decFile,rsk);
+      }
+      hide('dec-prog');show('dec-res');setMsg('解密完成');
+    }catch(e){hide('dec-prog');showErr('dec-err','解密失败：密码/密钥错误或文件损坏')}
   });
-  $('dec-dl').addEventListener('click',function(){
-    if(decBuf){var n=decFile.name.endsWith('.enc')?decFile.name.slice(0,-4):decFile.name+'.dec';dlBlob(decBuf,n)}
+
+  $('dec-dl').addEventListener('click', function(){
+    if(decBuf){
+      var n=decFile.name.endsWith('.enc')?decFile.name.slice(0,-4):decFile.name+'.dec';
+      dlBlob(decBuf,n);
+    }
   });
-  $('dec-rst').addEventListener('click',function(){
+
+  $('dec-rst').addEventListener('click', function(){
     decFile=null;decBuf=null;
     $('dec-finfo').innerHTML='📁 点击选择或拖放 .enc 文件';
-    $('dec-pwd').value='';$('dec-spk').value='';$('dec-rsk').value='';$('dec-file').value='';
+    $('dec-pwd').value='';$('dec-rsk').value='';$('dec-file').value='';
     hide('dec-err');hide('dec-res');hide('dec-prog');hide('dec-minfo');hide('dec-pw-sec');hide('dec-kp-sec');
   });
 
   // 生成密钥对
-  $('keys-gen').addEventListener('click',function(){
-    var kp=Na.crypto_kx_keypair();
-    $('kpub').value=Na.to_base64(kp.publicKey);
-    $('kpriv').value=Na.to_base64(kp.privateKey);
-    $('kpriv').type='password';
-    show('keys-res');setMsg('密钥对已生成');
+  $('keys-gen').addEventListener('click', async function(){
+    var kp = await C.subtle.generateKey({name:'ECDH',namedCurve:'P-256'}, true, ['deriveKey']);
+    var pubRaw  = await C.subtle.exportKey('raw',   kp.publicKey);
+    var privPkcs = await C.subtle.exportKey('pkcs8', kp.privateKey);
+    $('kpub').value  = b64enc(pubRaw);
+    $('kpriv').value = b64enc(privPkcs);
+    $('kpriv').type  = 'password';
+    show('keys-res'); setMsg('密钥对已生成');
   });
-  $('kpub-cp').addEventListener('click',function(){navigator.clipboard.writeText($('kpub').value).then(function(){setMsg('已复制公钥')})});
-  $('kpriv-cp').addEventListener('click',function(){navigator.clipboard.writeText($('kpriv').value).then(function(){setMsg('已复制私钥')})});
-  $('kpub-dl').addEventListener('click',function(){dlBlob([$('kpub').value],'key.public')});
-  $('kpriv-dl').addEventListener('click',function(){dlBlob([$('kpriv').value],'key.private')});
 
-}).catch(function(e){
-  setMsg('❌ 加密库加载失败：'+e.message);
+  $('kpub-cp').addEventListener('click',  function(){navigator.clipboard.writeText($('kpub').value).then(function(){setMsg('已复制公钥')})});
+  $('kpriv-cp').addEventListener('click', function(){navigator.clipboard.writeText($('kpriv').value).then(function(){setMsg('已复制私钥')})});
+  $('kpub-dl').addEventListener('click',  function(){dlBlob([$('kpub').value],  'key.pub')});
+  $('kpriv-dl').addEventListener('click', function(){dlBlob([$('kpriv').value], 'key.priv')});
+
+  setMsg('✅ 就绪');
 });
 </script>
 </body>
